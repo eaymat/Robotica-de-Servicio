@@ -1,10 +1,441 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Robótica de Servicio</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memoria Técnica: Localized Vacuum Cleaner</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 2.5rem 1.5rem;
+        }
+
+        .document {
+            max-width: 840px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #111111;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .meta {
+            font-size: 0.9rem;
+            color: #666666;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #111111;
+            margin-top: 2rem;
+            margin-bottom: 0.8rem;
+            border-bottom: 1px solid #d0d0d0;
+            padding-bottom: 0.3rem;
+        }
+
+        h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-top: 1.3rem;
+            margin-bottom: 0.4rem;
+        }
+
+        p {
+            margin: 0 0 1rem 0;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 0 0 1rem 1.5rem;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 0.3rem;
+        }
+
+        code {
+            font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 0.9em;
+            background-color: #f4f4f4;
+            padding: 0.15em 0.35em;
+        }
+
+        figure.diagram, figure.video-container {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        figure.diagram svg {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+        }
+
+        figure.diagram figcaption, figure.video-container figcaption {
+            font-size: 0.85rem;
+            color: #555555;
+            margin-top: 0.6rem;
+            font-style: italic;
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            background-color: #000000;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e5e5e5;
+        }
+
+        .video-wrapper video {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 480px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        th {
+            border-top: 2px solid #000000;
+            border-bottom: 1px solid #000000;
+            padding: 0.6rem 0.5rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            border-bottom: 1px solid #e5e5e5;
+            padding: 0.6rem 0.5rem;
+            vertical-align: top;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 2px solid #000000;
+        }
+
+        .equation {
+            display: block;
+            text-align: center;
+            font-family: Consolas, monospace;
+            font-weight: 600;
+            margin: 1rem 0;
+        }
+    </style>
 </head>
 <body>
-  <h1>Robótica de Servicio</h1>
+
+<div class="document">
+
+    <header>
+        <h1>Memoria Técnica</h1>
+        <div class="meta">Práctica: Localized Vacuum Cleaner</div>
+    </header>
+
+    <h2>1. Objetivo</h2>
+    <p>
+        El objetivo de esta práctica es implementar un algoritmo de cobertura completa para una aspiradora robótica autónoma haciendo uso de localización y un mapa bidimensional del entorno. A diferencia de las estrategias puramente reactivas basadas en rebotes, el robot conoce su posición en todo momento y planifica un barrido metódico en zigzag (Boustrophedon) con retroceso (Backtracking) para garantizar que ninguna habitación ni pasillo quede sin cubrir.
+    </p>
+
+    <h2>2. Máquina de Estados (FSM) y Algoritmo BSA</h2>
+    <p>
+        El comportamiento se implementa como una máquina de estados finita no bloqueante basada en el algoritmo <strong>BSA (Backtracking Spiral/Boustrophedon Algorithm)</strong>:
+    </p>
+    <ul>
+        <li><strong>INIT_CENTER:</strong> Centra al robot en el centro geométrico de su celda de inicio para evitar desfases de carril antes de iniciar el barrido.</li>
+        <li><strong>SWEEP_ALIGN:</strong> Evalúa las celdas contiguas libres. Si la fila continúa, da paso al avance recto; si detecta el final, prepara el cambio de fila o declara un punto crítico.</li>
+        <li><strong>SWEEP_DRIVE:</strong> Recorre la fila horizontal a velocidad de crucero constante, marcando las celdas como limpiadas (azul) y registrando bifurcaciones como puntos de retorno (amarillo). Solo desacelera al aproximarse a la última celda de la fila.</li>
+        <li><strong>ROW_SHIFT:</strong> Ejecuta el desplazamiento vertical de una sola celda a velocidad moderada de maniobra, clavando el centro de la nueva fila.</li>
+        <li><strong>CRITICAL_POINT:</strong> Cuando el robot queda encerrado sin celdas libres alrededor, pinta la casilla de naranja y calcula mediante BFS la ruta óptima de retorno al punto amarillo más cercano.</li>
+        <li><strong>BACKTRACK:</strong> Navega por el camino más corto a través de celdas ya transitadas hasta el punto de retorno seleccionado para reanudar el barrido en una nueva zona.</li>
+    </ul>
+
+    <figure class="diagram">
+        <svg width="780" height="390" viewBox="0 0 780 390" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#111111"/>
+                </marker>
+                <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ea580c"/>
+                </marker>
+                <marker id="arrow-dashed" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#666666"/>
+                </marker>
+            </defs>
+
+            <!-- Spawn -->
+            <circle cx="45" cy="62" r="5" fill="#111111" />
+            <line x1="50" y1="62" x2="85" y2="62" stroke="#111111" stroke-width="1.6" marker-end="url(#arrow)" />
+            <text x="45" y="44" font-size="11" font-weight="700" text-anchor="middle">Spawn</text>
+
+            <!-- Cajas de Estado -->
+            <rect x="90" y="38" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+            <text x="155" y="67" font-size="12" font-weight="700" text-anchor="middle">INIT_CENTER</text>
+
+            <rect x="325" y="38" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+            <text x="390" y="67" font-size="12" font-weight="700" text-anchor="middle">SWEEP_ALIGN</text>
+
+            <rect x="560" y="38" width="140" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+            <text x="630" y="67" font-size="12" font-weight="700" text-anchor="middle">SWEEP_DRIVE</text>
+
+            <rect x="560" y="180" width="140" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+            <text x="630" y="209" font-size="12" font-weight="700" text-anchor="middle">ROW_SHIFT</text>
+
+            <rect x="325" y="180" width="130" height="48" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+            <text x="390" y="209" font-size="11" font-weight="700" fill="#ea580c" text-anchor="middle">CRITICAL_POINT</text>
+
+            <rect x="90" y="180" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+            <text x="155" y="209" font-size="12" font-weight="700" text-anchor="middle">BACKTRACK</text>
+
+            <rect x="325" y="315" width="130" height="44" rx="4" fill="#f4f4f4" stroke="#111111" stroke-width="1.8" />
+            <text x="390" y="342" font-size="12" font-weight="700" text-anchor="middle">FINISHED</text>
+
+            <!-- 1. INIT_CENTER -> SWEEP_ALIGN -->
+            <line x1="220" y1="62" x2="315" y2="62" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="235" y="52" width="70" height="15" fill="#ffffff" />
+            <text x="270" y="64" font-size="9" font-weight="500" text-anchor="middle">Centrado OK</text>
+
+            <!-- 2. SWEEP_ALIGN -> SWEEP_DRIVE (Ida) -->
+            <line x1="455" y1="52" x2="550" y2="52" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="475" y="42" width="60" height="15" fill="#ffffff" />
+            <text x="505" y="54" font-size="9" font-weight="500" text-anchor="middle">Fila libre</text>
+
+            <!-- 3. SWEEP_DRIVE -> SWEEP_ALIGN (Vuelta continua) -->
+            <line x1="560" y1="72" x2="465" y2="72" stroke="#666666" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#arrow-dashed)" />
+            <rect x="470" y="77" width="80" height="14" fill="#ffffff" />
+            <text x="510" y="88" font-size="9" font-weight="500" text-anchor="middle" fill="#555555">Paso continuo</text>
+
+            <!-- 4. SWEEP_DRIVE -> ROW_SHIFT (Fin de fila, bajada vertical) -->
+            <line x1="630" y1="86" x2="630" y2="170" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="595" y="125" width="70" height="15" fill="#ffffff" />
+            <text x="630" y="136" font-size="9" font-weight="500" text-anchor="middle">Fin de fila</text>
+
+            <!-- 5. ROW_SHIFT -> SWEEP_ALIGN (Nueva fila centrada, retorno ortogonal) -->
+            <path d="M 560 204 L 490 204 L 490 86 L 463 86" fill="none" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="480" y="145" width="85" height="15" fill="#ffffff" />
+            <text x="522" y="156" font-size="9" font-weight="500" text-anchor="middle">Nueva fila lista</text>
+
+            <!-- 6. SWEEP_ALIGN -> CRITICAL_POINT (Atasco, bajada directa naranja) -->
+            <line x1="390" y1="86" x2="390" y2="170" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrow-orange)" />
+            <rect x="340" y="125" width="100" height="15" fill="#ffffff" />
+            <text x="390" y="136" font-size="9" font-weight="600" fill="#ea580c" text-anchor="middle">Sin celdas libres</text>
+
+            <!-- 7. CRITICAL_POINT -> BACKTRACK (Horizontal izquierda) -->
+            <line x1="325" y1="204" x2="230" y2="204" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="245" y="195" width="70" height="15" fill="#ffffff" />
+            <text x="280" y="206" font-size="9" font-weight="500" text-anchor="middle">Ruta BFS lista</text>
+
+            <!-- 8. BACKTRACK -> SWEEP_ALIGN (Retorno ortogonal por la izquierda) -->
+            <path d="M 155 180 L 155 115 L 345 115 L 345 94" fill="none" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="180" y="107" width="125" height="15" fill="#ffffff" />
+            <text x="242" y="118" font-size="9" font-weight="500" text-anchor="middle">Llegada a Return Point</text>
+
+            <!-- 9. CRITICAL_POINT -> FINISHED (Bajada final) -->
+            <line x1="390" y1="228" x2="390" y2="305" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+            <rect x="325" y="262" width="130" height="15" fill="#ffffff" />
+            <text x="390" y="273" font-size="9" font-weight="600" text-anchor="middle">0 celdas libres restantes</text>
+        </svg>
+        <figcaption>Figura 1. Diagrama ortogonal de la máquina de estados BSA con retroceso.</figcaption>
+    </figure>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Estado actual</th>
+                <th>Condición evaluada</th>
+                <th>Acción física / visual</th>
+                <th>Siguiente estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>INIT_CENTER</code></td>
+                <td>Distancia al centro de inicio dentro de tolerancia</td>
+                <td>Frena a cero y alinea ángulo hacia el frente de barrido</td>
+                <td><code>SWEEP_ALIGN</code></td>
+            </tr>
+            <tr>
+                <td><code>SWEEP_ALIGN</code></td>
+                <td>Frente libre en la fila actual</td>
+                <td>Guarda bifurcaciones en amarillo y arranca avance</td>
+                <td><code>SWEEP_DRIVE</code></td>
+            </tr>
+            <tr>
+                <td><code>SWEEP_DRIVE</code></td>
+                <td>Alcanza el centro de la última celda de la fila</td>
+                <td>Aplica rampa de deceleración y detiene motores</td>
+                <td><code>ROW_SHIFT</code></td>
+            </tr>
+            <tr>
+                <td><code>ROW_SHIFT</code></td>
+                <td>Llega al centro de la nueva fila a velocidad baja</td>
+                <td>Parada en el centro y gira 90° hacia la fila</td>
+                <td><code>SWEEP_ALIGN</code></td>
+            </tr>
+            <tr>
+                <td><code>SWEEP_ALIGN</code></td>
+                <td>Ningún vecino libre en ninguna dirección</td>
+                <td>Pinta casilla de naranja (129)</td>
+                <td><code>CRITICAL_POINT</code></td>
+            </tr>
+            <tr>
+                <td><code>CRITICAL_POINT</code></td>
+                <td>Quedan Return Points o celdas libres en el mapa</td>
+                <td>Calcula ruta BFS más corta a través de celdas transitadas</td>
+                <td><code>BACKTRACK</code></td>
+            </tr>
+            <tr>
+                <td><code>CRITICAL_POINT</code></td>
+                <td>No queda ninguna celda libre alcanzable</td>
+                <td>Detiene los motores completamente</td>
+                <td><code>FINISHED</code></td>
+            </tr>
+            <tr>
+                <td><code>BACKTRACK</code></td>
+                <td>Llega a la celda del Return Point objetivo</td>
+                <td>Orienta el barrido hacia el lado con celdas libres</td>
+                <td><code>SWEEP_ALIGN</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>3. Decisiones de Diseño e Implementación</h2>
+
+    <h3>3.1. Transformada de Coordenadas Invertida y Escala Real</h3>
+    <p>
+        El mapa suministrado sitúa su origen en la esquina superior izquierda de la imagen, mientras que el simulador ubica su origen en el centro de la casa con el eje horizontal invertido respecto al visualizador.
+    </p>
+    <p>
+        La escala entre ambos mundos se dedujo a partir de las dimensiones del chasis: el diámetro real del robot se mapea a píxeles en la imagen, estableciendo una relación directa entre metros y píxeles. Teniendo en cuenta los offsets de centrado de la simulación, las transformaciones bidireccionales permiten convertir continuamente entre la odometría de Gazebo y las coordenadas discretas de la rejilla. El signo negativo en el eje horizontal garantiza que cuando el robot avanza hacia el oeste en el simulador, la representación en pantalla se mueva fielmente hacia el oeste sin desfasarse de los muros.
+    </p>
+
+    <h3>3.2. Discretización en Rejilla y Descarte Estricto por Erosión</h3>
+    <p>
+        Para estructurar la navegación celular se dividió el mapa en una cuadrícula regular. El tamaño de cada celda se escogió inferior al diámetro del robot; de esta forma, cada pasada limpia la celda por completo y solapa con las contiguas, evitando dejar franjas de suciedad entre pasadas.
+    </p>
+    <p>
+        Inicialmente se probó un filtrado por porcentaje de píxeles libres, pero provocaba asimetrías indeseadas en esquinas rectangulares donde un vértice se descartaba y el opuesto se aceptaba. Para asegurar simetría total y prevenir colisiones, se implementó un <strong>descarte estricto con margen morfológico</strong>:
+    </p>
+    <ol>
+        <li>Se expanden los obstáculos del mapa mediante erosión morfológica del espacio libre utilizando un kernel estructurante.</li>
+        <li>Una celda solo se clasifica como libre (<code>CELL_FREE</code>) si todos sus píxeles son transitables tras la erosión. La presencia de un solo píxel de obstáculo descarta la celda completa.</li>
+    </ol>
+    <p>
+        Geométricamente, al sumar la barrera de erosión y la distancia desde el centro de la celda hasta su frontera exterior, el centro de cualquier celda transitable se sitúa siempre a una distancia del muro superior al radio físico del robot. Esto asegura una holgura libre de seguridad permanente contra cualquier obstáculo.
+    </p>
+
+    <figure class="diagram">
+        <svg width="640" height="250" viewBox="0 0 640 250" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <marker id="dim-arrow-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                    <path d="M 8 1.5 L 0 5 L 8 8.5 z" fill="#16a34a"/>
+                </marker>
+                <marker id="dim-arrow-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16a34a"/>
+                </marker>
+            </defs>
+
+            <!-- Muro físico -->
+            <rect x="40" y="30" width="80" height="190" fill="#111111" />
+            <text x="80" y="130" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Muro físico</text>
+
+            <!-- Margen de erosión -->
+            <rect x="120" y="30" width="45" height="190" fill="#fee2e2" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3 3" />
+            <text x="142" y="22" font-size="9" font-weight="600" fill="#dc2626" text-anchor="middle">Erosión</text>
+
+            <!-- Celda libre -->
+            <rect x="165" y="45" width="160" height="160" fill="#f4f4f4" stroke="#666666" stroke-width="1.6" />
+            <text x="245" y="38" font-size="10" font-weight="600" text-anchor="middle">Celda libre transitable</text>
+
+            <!-- Centro de la celda -->
+            <circle cx="245" cy="125" r="3.5" fill="#111111" />
+            <text x="245" y="142" font-size="9" text-anchor="middle">Centro</text>
+
+            <!-- Perímetro del robot -->
+            <circle cx="245" cy="125" r="105" fill="none" stroke="#2563eb" stroke-width="1.8" />
+            <text x="245" y="242" font-size="10" font-weight="600" fill="#2563eb" text-anchor="middle">Perímetro físico del robot</text>
+
+            <!-- Cota de holgura libre garantizada -->
+            <line x1="120" y1="125" x2="140" y2="125" stroke="#16a34a" stroke-width="2" marker-start="url(#dim-arrow-start)" marker-end="url(#dim-arrow-end)" />
+            <line x1="120" y1="110" x2="120" y2="140" stroke="#16a34a" stroke-width="1.2" />
+            <line x1="140" y1="110" x2="140" y2="140" stroke="#16a34a" stroke-width="1.2" />
+            <text x="130" y="100" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle">Holgura</text>
+        </svg>
+        <figcaption>Figura 2. Garantía geométrica de holgura libre entre chasis y pared.</figcaption>
+    </figure>
+
+    <h3>3.3. Giros Exactos a 90° con Reposo Físico Amortiguado</h3>
+    <p>
+        Al realizar cambios de fila, el robot experimentaba sobreoscilación angular debido a la inercia del simulador, deteniéndose ligeramente por encima de los 90°. Ese pequeño desvío hacía que iniciara la siguiente pasada torcido y circulara sobre las fronteras de las celdas.
+    </p>
+    <p>
+        La causa era que el lazo cortaba la velocidad angular en cuanto el error descendía del umbral de tolerancia, pero la inercia mecánica seguía rotando el chasis durante unas décimas de segundo adicionales mientras el código ya ordenaba avance lineal.
+    </p>
+    <p>
+        La solución consistió en:
+    </p>
+    <ul>
+        <li>Definir <strong>ángulos cardinales teóricos puros</strong> (0°, 90°, 180°, -90°) a partir de la cuadrícula, eliminando cualquier componente diagonal residual.</li>
+        <li>Aplicar control proporcional suave con velocidad angular moderada para evitar entradas bruscas.</li>
+        <li>Añadir una <strong>comprobación de reposo estático</strong>: el robot comanda velocidad cero y únicamente pasa al siguiente estado cuando el error se mantiene dentro de la tolerancia estricta durante varios ciclos consecutivos con el chasis completamente inmóvil.</li>
+    </ul>
+
+    <h3>3.4. Rampa de Desaceleración Anticipada y Corrección Lateral (Cross-Track)</h3>
+    <p>
+        Para asegurar una dinámica suave y evitar frenazos en seco o deslizamientos indeseados:
+    </p>
+    <ol>
+        <li><strong>Desaceleración anticipada:</strong> En lugar de esperar a estar dentro de la celda de destino para frenar, el robot inicia una rampa de desaceleración progresiva con antelación al aproximarse al final de una pasada. Al alcanzar el centro, su velocidad es mínima y se detiene sin inercia.</li>
+        <li><strong>Velocidad moderada en pasos verticales:</strong> En el salto vertical de una sola celda para cambiar de fila, la velocidad se acota a un valor bajo de maniobra y comienza a decelerar casi desde el inicio, evitando pasarse de largo hacia abajo.</li>
+        <li><strong>Control lateral Cross-Track:</strong> Mientras avanza horizontalmente por una fila, mide continuamente su desviación respecto a la recta ideal del carril e introduce una leve corrección angular que lo mantiene centrado en el eje de la celda.</li>
+    </ol>
+
+    <h2>4. Ajustes Prácticos y Simulación</h2>
+    <ul>
+        <li><strong>Centrado previo obligatorio:</strong> El robot aparece en el simulador en una posición ligeramente desplazada respecto al centro de su celda de partida. Realizar una maniobra previa de centrado evita arrastrar ese desfase a lo largo de todo el mapa.</li>
+        <li><strong>Lookahead sin efecto acordeón:</strong> Si se evalúa cada celda de forma aislada, el robot tiende a frenar y acelerar en cada transición. Con una comprobación de continuidad hacia adelante en la cuadrícula, si la siguiente celda de la fila sigue estando libre, el robot encadena los pasos a velocidad de crucero continuo sin interrupciones.</li>
+        <li><strong>Gestión de Puntos Críticos y Return Points:</strong> Las casillas donde el robot agota sus opciones de avance se pintan de <strong>naranja (129)</strong> en la visualización. Al finalizar el camino de retorno mediante BFS, el robot orienta dinámicamente el barrido hacia el lado donde se encuentren las celdas libres pendientes.</li>
+        <li><strong>Decimación del envío a WebGUI:</strong> Enviar mapas completos en cada ciclo saturaba la conexión en el entorno web. Refrescar la interfaz cada varios ciclos permite mantener el lazo de control y la odometría a una frecuencia alta y estable.</li>
+    </ul>
+
+    <h2>5. Demostración en Vídeo</h2>
+    <p>
+        A continuación se muestra la ejecución completa del algoritmo de cobertura BSA Zig-Zag en simulación:
+    </p>
+
+    <figure class="video-container">
+        <div class="video-wrapper">
+            <video controls preload="metadata" playsinline>
+                <source src="video.mp4" type="video/mp4">
+                Tu navegador no soporta la reproducción de vídeo HTML5.
+            </video>
+        </div>
+        <figcaption>Demostración de la cobertura completa del entorno mediante BSA Zig-Zag.</figcaption>
+    </figure>
+
+</div>
+
 </body>
 </html>
