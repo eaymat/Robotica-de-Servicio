@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memoria Técnica: Localized Vacuum Cleaner</title>
+    <title>Memorias Técnicas de Robótica</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -19,10 +19,51 @@
             margin: 0 auto;
         }
 
+        .tabs-nav {
+            display: flex;
+            gap: 0.4rem;
+            border-bottom: 2px solid #111111;
+            margin-bottom: 2rem;
+            padding-bottom: 0;
+        }
+
+        .tab-btn {
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #555555;
+            background-color: #f4f4f4;
+            border: 1px solid #d0d0d0;
+            border-bottom: none;
+            padding: 0.65rem 1.25rem;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .tab-btn:hover {
+            background-color: #e8e8e8;
+            color: #111111;
+        }
+
+        .tab-btn.active {
+            background-color: #111111;
+            color: #ffffff;
+            border-color: #111111;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         header {
             margin-bottom: 2rem;
             padding-bottom: 1rem;
-            border-bottom: 2px solid #111111;
+            border-bottom: 1px solid #d0d0d0;
         }
 
         h1 {
@@ -148,294 +189,645 @@
 
 <div class="document">
 
-    <header>
-        <h1>Memoria Técnica</h1>
-        <div class="meta">Práctica: Localized Vacuum Cleaner</div>
-    </header>
+    <nav class="tabs-nav">
+        <button class="tab-btn active" onclick="openPractice(event, 'localized-vacuum')">
+            Práctica 1: Localized Vacuum Cleaner
+        </button>
+        <button class="tab-btn" onclick="openPractice(event, 'rescue-people')">
+            Práctica 2: Drone Rescue People
+        </button>
+    </nav>
 
-    <h2>1. Objetivo</h2>
-    <p>
-        El objetivo de esta práctica es implementar un algoritmo de cobertura completa para una aspiradora robótica autónoma haciendo uso de localización y un mapa bidimensional del entorno. A diferencia de las estrategias puramente reactivas basadas en rebotes, el robot conoce su posición en todo momento y planifica un barrido metódico en zigzag (Boustrophedon) con retroceso (Backtracking) para garantizar que ninguna habitación ni pasillo quede sin cubrir.
-    </p>
+    <!-- =================================================================== -->
+    <!-- PESTAÑA 1: LOCALIZED VACUUM CLEANER (CONTENIDO ORIGINAL ÍNTEGRO)    -->
+    <!-- =================================================================== -->
+    <div id="localized-vacuum" class="tab-content active">
+        <header>
+            <h1>Memoria Técnica</h1>
+            <div class="meta">Práctica: Localized Vacuum Cleaner</div>
+        </header>
 
-    <h2>2. Máquina de Estados (FSM) y Algoritmo BSA</h2>
-    <p>
-        El comportamiento se implementa como una máquina de estados finita no bloqueante basada en el algoritmo <strong>BSA (Backtracking Spiral/Boustrophedon Algorithm)</strong>:
-    </p>
-    <ul>
-        <li><strong>INIT_CENTER:</strong> Centra al robot en el centro geométrico de su celda de inicio para evitar desfases de carril antes de iniciar el barrido.</li>
-        <li><strong>SWEEP_ALIGN:</strong> Evalúa las celdas contiguas libres. Si la fila continúa, da paso al avance recto; si detecta el final, prepara el cambio de fila o declara un punto crítico.</li>
-        <li><strong>SWEEP_DRIVE:</strong> Recorre la fila horizontal a velocidad de crucero constante, marcando las celdas como limpiadas (azul) y registrando bifurcaciones como puntos de retorno (amarillo). Solo desacelera al aproximarse a la última celda de la fila.</li>
-        <li><strong>ROW_SHIFT:</strong> Ejecuta el desplazamiento vertical de una sola celda a velocidad moderada de maniobra, clavando el centro de la nueva fila.</li>
-        <li><strong>CRITICAL_POINT:</strong> Cuando el robot queda encerrado sin celdas libres alrededor, pinta la casilla de naranja y calcula mediante BFS la ruta óptima de retorno al punto amarillo más cercano.</li>
-        <li><strong>BACKTRACK:</strong> Navega por el camino más corto a través de celdas ya transitadas hasta el punto de retorno seleccionado para reanudar el barrido en una nueva zona.</li>
-    </ul>
+        <h2>1. Objetivo</h2>
+        <p>
+            El objetivo de esta práctica es implementar un algoritmo de cobertura completa para una aspiradora robótica autónoma haciendo uso de localización y un mapa bidimensional del entorno. A diferencia de las estrategias puramente reactivas basadas en rebotes, el robot conoce su posición en todo momento y planifica un barrido metódico en zigzag (Boustrophedon) con retroceso (Backtracking) para garantizar que ninguna habitación ni pasillo quede sin cubrir.
+        </p>
 
-    <figure class="diagram">
-        <svg width="780" height="390" viewBox="0 0 780 390" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#111111"/>
-                </marker>
-                <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ea580c"/>
-                </marker>
-                <marker id="arrow-dashed" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#666666"/>
-                </marker>
-            </defs>
+        <h2>2. Máquina de Estados (FSM) y Algoritmo BSA</h2>
+        <p>
+            El comportamiento se implementa como una máquina de estados finita no bloqueante basada en el algoritmo <strong>BSA (Backtracking Spiral/Boustrophedon Algorithm)</strong>:
+        </p>
+        <ul>
+            <li><strong>INIT_CENTER:</strong> Centra al robot en el centro geométrico de su celda de inicio para evitar desfases de carril antes de iniciar el barrido.</li>
+            <li><strong>SWEEP_ALIGN:</strong> Evalúa las celdas contiguas libres. Si la fila continúa, da paso al avance recto; si detecta el final, prepara el cambio de fila o declara un punto crítico.</li>
+            <li><strong>SWEEP_DRIVE:</strong> Recorre la fila horizontal a velocidad de crucero constante, marcando las celdas como limpiadas (azul) y registrando bifurcaciones como puntos de retorno (amarillo). Solo desacelera al aproximarse a la última celda de la fila.</li>
+            <li><strong>ROW_SHIFT:</strong> Ejecuta el desplazamiento vertical de una sola celda a velocidad moderada de maniobra, clavando el centro de la nueva fila.</li>
+            <li><strong>CRITICAL_POINT:</strong> Cuando el robot queda encerrado sin celdas libres alrededor, pinta la casilla de naranja y calcula mediante BFS la ruta óptima de retorno al punto amarillo más cercano.</li>
+            <li><strong>BACKTRACK:</strong> Navega por el camino más corto a través de celdas ya transitadas hasta el punto de retorno seleccionado para reanudar el barrido en una nueva zona.</li>
+        </ul>
 
-            <!-- Spawn -->
-            <circle cx="45" cy="62" r="5" fill="#111111" />
-            <line x1="50" y1="62" x2="85" y2="62" stroke="#111111" stroke-width="1.6" marker-end="url(#arrow)" />
-            <text x="45" y="44" font-size="11" font-weight="700" text-anchor="middle">Spawn</text>
+        <figure class="diagram">
+            <svg width="780" height="390" viewBox="0 0 780 390" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#111111"/>
+                    </marker>
+                    <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ea580c"/>
+                    </marker>
+                    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#666666"/>
+                    </marker>
+                </defs>
 
-            <!-- Cajas de Estado -->
-            <rect x="90" y="38" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
-            <text x="155" y="67" font-size="12" font-weight="700" text-anchor="middle">INIT_CENTER</text>
+                <!-- Spawn -->
+                <circle cx="45" cy="62" r="5" fill="#111111" />
+                <line x1="50" y1="62" x2="85" y2="62" stroke="#111111" stroke-width="1.6" marker-end="url(#arrow)" />
+                <text x="45" y="44" font-size="11" font-weight="700" text-anchor="middle">Spawn</text>
 
-            <rect x="325" y="38" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
-            <text x="390" y="67" font-size="12" font-weight="700" text-anchor="middle">SWEEP_ALIGN</text>
+                <!-- Cajas de Estado -->
+                <rect x="90" y="38" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="155" y="67" font-size="12" font-weight="700" text-anchor="middle">INIT_CENTER</text>
 
-            <rect x="560" y="38" width="140" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
-            <text x="630" y="67" font-size="12" font-weight="700" text-anchor="middle">SWEEP_DRIVE</text>
+                <rect x="325" y="38" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="390" y="67" font-size="12" font-weight="700" text-anchor="middle">SWEEP_ALIGN</text>
 
-            <rect x="560" y="180" width="140" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
-            <text x="630" y="209" font-size="12" font-weight="700" text-anchor="middle">ROW_SHIFT</text>
+                <rect x="560" y="38" width="140" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="630" y="67" font-size="12" font-weight="700" text-anchor="middle">SWEEP_DRIVE</text>
 
-            <rect x="325" y="180" width="130" height="48" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
-            <text x="390" y="209" font-size="11" font-weight="700" fill="#ea580c" text-anchor="middle">CRITICAL_POINT</text>
+                <rect x="560" y="180" width="140" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="630" y="209" font-size="12" font-weight="700" text-anchor="middle">ROW_SHIFT</text>
 
-            <rect x="90" y="180" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
-            <text x="155" y="209" font-size="12" font-weight="700" text-anchor="middle">BACKTRACK</text>
+                <rect x="325" y="180" width="130" height="48" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+                <text x="390" y="209" font-size="11" font-weight="700" fill="#ea580c" text-anchor="middle">CRITICAL_POINT</text>
 
-            <rect x="325" y="315" width="130" height="44" rx="4" fill="#f4f4f4" stroke="#111111" stroke-width="1.8" />
-            <text x="390" y="342" font-size="12" font-weight="700" text-anchor="middle">FINISHED</text>
+                <rect x="90" y="180" width="130" height="48" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="155" y="209" font-size="12" font-weight="700" text-anchor="middle">BACKTRACK</text>
 
-            <!-- 1. INIT_CENTER -> SWEEP_ALIGN -->
-            <line x1="220" y1="62" x2="315" y2="62" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="235" y="52" width="70" height="15" fill="#ffffff" />
-            <text x="270" y="64" font-size="9" font-weight="500" text-anchor="middle">Centrado OK</text>
+                <rect x="325" y="315" width="130" height="44" rx="4" fill="#f4f4f4" stroke="#111111" stroke-width="1.8" />
+                <text x="390" y="342" font-size="12" font-weight="700" text-anchor="middle">FINISHED</text>
 
-            <!-- 2. SWEEP_ALIGN -> SWEEP_DRIVE (Ida) -->
-            <line x1="455" y1="52" x2="550" y2="52" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="475" y="42" width="60" height="15" fill="#ffffff" />
-            <text x="505" y="54" font-size="9" font-weight="500" text-anchor="middle">Fila libre</text>
+                <!-- 1. INIT_CENTER -> SWEEP_ALIGN -->
+                <line x1="220" y1="62" x2="315" y2="62" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="235" y="52" width="70" height="15" fill="#ffffff" />
+                <text x="270" y="64" font-size="9" font-weight="500" text-anchor="middle">Centrado OK</text>
 
-            <!-- 3. SWEEP_DRIVE -> SWEEP_ALIGN (Vuelta continua) -->
-            <line x1="560" y1="72" x2="465" y2="72" stroke="#666666" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#arrow-dashed)" />
-            <rect x="470" y="77" width="80" height="14" fill="#ffffff" />
-            <text x="510" y="88" font-size="9" font-weight="500" text-anchor="middle" fill="#555555">Paso continuo</text>
+                <!-- 2. SWEEP_ALIGN -> SWEEP_DRIVE (Ida) -->
+                <line x1="455" y1="52" x2="550" y2="52" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="475" y="42" width="60" height="15" fill="#ffffff" />
+                <text x="505" y="54" font-size="9" font-weight="500" text-anchor="middle">Fila libre</text>
 
-            <!-- 4. SWEEP_DRIVE -> ROW_SHIFT (Fin de fila, bajada vertical) -->
-            <line x1="630" y1="86" x2="630" y2="170" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="595" y="125" width="70" height="15" fill="#ffffff" />
-            <text x="630" y="136" font-size="9" font-weight="500" text-anchor="middle">Fin de fila</text>
+                <!-- 3. SWEEP_DRIVE -> SWEEP_ALIGN (Vuelta continua) -->
+                <line x1="560" y1="72" x2="465" y2="72" stroke="#666666" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#arrow-dashed)" />
+                <rect x="470" y="77" width="80" height="14" fill="#ffffff" />
+                <text x="510" y="88" font-size="9" font-weight="500" text-anchor="middle" fill="#555555">Paso continuo</text>
 
-            <!-- 5. ROW_SHIFT -> SWEEP_ALIGN (Nueva fila centrada, retorno ortogonal) -->
-            <path d="M 560 204 L 490 204 L 490 86 L 463 86" fill="none" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="480" y="145" width="85" height="15" fill="#ffffff" />
-            <text x="522" y="156" font-size="9" font-weight="500" text-anchor="middle">Nueva fila lista</text>
+                <!-- 4. SWEEP_DRIVE -> ROW_SHIFT (Fin de fila, bajada vertical) -->
+                <line x1="630" y1="86" x2="630" y2="170" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="595" y="125" width="70" height="15" fill="#ffffff" />
+                <text x="630" y="136" font-size="9" font-weight="500" text-anchor="middle">Fin de fila</text>
 
-            <!-- 6. SWEEP_ALIGN -> CRITICAL_POINT (Atasco, bajada directa naranja) -->
-            <line x1="390" y1="86" x2="390" y2="170" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrow-orange)" />
-            <rect x="340" y="125" width="100" height="15" fill="#ffffff" />
-            <text x="390" y="136" font-size="9" font-weight="600" fill="#ea580c" text-anchor="middle">Sin celdas libres</text>
+                <!-- 5. ROW_SHIFT -> SWEEP_ALIGN (Nueva fila centrada, retorno ortogonal) -->
+                <path d="M 560 204 L 490 204 L 490 86 L 463 86" fill="none" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="480" y="145" width="85" height="15" fill="#ffffff" />
+                <text x="522" y="156" font-size="9" font-weight="500" text-anchor="middle">Nueva fila lista</text>
 
-            <!-- 7. CRITICAL_POINT -> BACKTRACK (Horizontal izquierda) -->
-            <line x1="325" y1="204" x2="230" y2="204" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="245" y="195" width="70" height="15" fill="#ffffff" />
-            <text x="280" y="206" font-size="9" font-weight="500" text-anchor="middle">Ruta BFS lista</text>
+                <!-- 6. SWEEP_ALIGN -> CRITICAL_POINT (Atasco, bajada directa naranja) -->
+                <line x1="390" y1="86" x2="390" y2="170" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrow-orange)" />
+                <rect x="340" y="125" width="100" height="15" fill="#ffffff" />
+                <text x="390" y="136" font-size="9" font-weight="600" fill="#ea580c" text-anchor="middle">Sin celdas libres</text>
 
-            <!-- 8. BACKTRACK -> SWEEP_ALIGN (Retorno ortogonal por la izquierda) -->
-            <path d="M 155 180 L 155 115 L 345 115 L 345 94" fill="none" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="180" y="107" width="125" height="15" fill="#ffffff" />
-            <text x="242" y="118" font-size="9" font-weight="500" text-anchor="middle">Llegada a Return Point</text>
+                <!-- 7. CRITICAL_POINT -> BACKTRACK (Horizontal izquierda) -->
+                <line x1="325" y1="204" x2="230" y2="204" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="245" y="195" width="70" height="15" fill="#ffffff" />
+                <text x="280" y="206" font-size="9" font-weight="500" text-anchor="middle">Ruta BFS lista</text>
 
-            <!-- 9. CRITICAL_POINT -> FINISHED (Bajada final) -->
-            <line x1="390" y1="228" x2="390" y2="305" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
-            <rect x="325" y="262" width="130" height="15" fill="#ffffff" />
-            <text x="390" y="273" font-size="9" font-weight="600" text-anchor="middle">0 celdas libres restantes</text>
-        </svg>
-        <figcaption>Figura 1. Diagrama ortogonal de la máquina de estados BSA con retroceso.</figcaption>
-    </figure>
+                <!-- 8. BACKTRACK -> SWEEP_ALIGN (Retorno ortogonal por la izquierda) -->
+                <path d="M 155 180 L 155 115 L 345 115 L 345 94" fill="none" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="180" y="107" width="125" height="15" fill="#ffffff" />
+                <text x="242" y="118" font-size="9" font-weight="500" text-anchor="middle">Llegada a Return Point</text>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Estado actual</th>
-                <th>Condición evaluada</th>
-                <th>Acción física / visual</th>
-                <th>Siguiente estado</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><code>INIT_CENTER</code></td>
-                <td>Distancia al centro de inicio dentro de tolerancia</td>
-                <td>Frena a cero y alinea ángulo hacia el frente de barrido</td>
-                <td><code>SWEEP_ALIGN</code></td>
-            </tr>
-            <tr>
-                <td><code>SWEEP_ALIGN</code></td>
-                <td>Frente libre en la fila actual</td>
-                <td>Guarda bifurcaciones en amarillo y arranca avance</td>
-                <td><code>SWEEP_DRIVE</code></td>
-            </tr>
-            <tr>
-                <td><code>SWEEP_DRIVE</code></td>
-                <td>Alcanza el centro de la última celda de la fila</td>
-                <td>Aplica rampa de deceleración y detiene motores</td>
-                <td><code>ROW_SHIFT</code></td>
-            </tr>
-            <tr>
-                <td><code>ROW_SHIFT</code></td>
-                <td>Llega al centro de la nueva fila a velocidad baja</td>
-                <td>Parada en el centro y gira 90° hacia la fila</td>
-                <td><code>SWEEP_ALIGN</code></td>
-            </tr>
-            <tr>
-                <td><code>SWEEP_ALIGN</code></td>
-                <td>Ningún vecino libre en ninguna dirección</td>
-                <td>Pinta casilla de naranja (129)</td>
-                <td><code>CRITICAL_POINT</code></td>
-            </tr>
-            <tr>
-                <td><code>CRITICAL_POINT</code></td>
-                <td>Quedan Return Points o celdas libres en el mapa</td>
-                <td>Calcula ruta BFS más corta a través de celdas transitadas</td>
-                <td><code>BACKTRACK</code></td>
-            </tr>
-            <tr>
-                <td><code>CRITICAL_POINT</code></td>
-                <td>No queda ninguna celda libre alcanzable</td>
-                <td>Detiene los motores completamente</td>
-                <td><code>FINISHED</code></td>
-            </tr>
-            <tr>
-                <td><code>BACKTRACK</code></td>
-                <td>Llega a la celda del Return Point objetivo</td>
-                <td>Orienta el barrido hacia el lado con celdas libres</td>
-                <td><code>SWEEP_ALIGN</code></td>
-            </tr>
-        </tbody>
-    </table>
+                <!-- 9. CRITICAL_POINT -> FINISHED (Bajada final) -->
+                <line x1="390" y1="228" x2="390" y2="305" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow)" />
+                <rect x="325" y="262" width="130" height="15" fill="#ffffff" />
+                <text x="390" y="273" font-size="9" font-weight="600" text-anchor="middle">0 celdas libres restantes</text>
+            </svg>
+            <figcaption>Figura 1. Diagrama ortogonal de la máquina de estados BSA con retroceso.</figcaption>
+        </figure>
 
-    <h2>3. Decisiones de Diseño e Implementación</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Estado actual</th>
+                    <th>Condición evaluada</th>
+                    <th>Acción física / visual</th>
+                    <th>Siguiente estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>INIT_CENTER</code></td>
+                    <td>Distancia al centro de inicio dentro de tolerancia</td>
+                    <td>Frena a cero y alinea ángulo hacia el frente de barrido</td>
+                    <td><code>SWEEP_ALIGN</code></td>
+                </tr>
+                <tr>
+                    <td><code>SWEEP_ALIGN</code></td>
+                    <td>Frente libre en la fila actual</td>
+                    <td>Guarda bifurcaciones en amarillo y arranca avance</td>
+                    <td><code>SWEEP_DRIVE</code></td>
+                </tr>
+                <tr>
+                    <td><code>SWEEP_DRIVE</code></td>
+                    <td>Alcanza el centro de la última celda de la fila</td>
+                    <td>Aplica rampa de deceleración y detiene motores</td>
+                    <td><code>ROW_SHIFT</code></td>
+                </tr>
+                <tr>
+                    <td><code>ROW_SHIFT</code></td>
+                    <td>Llega al centro de la nueva fila a velocidad baja</td>
+                    <td>Parada en el centro y gira 90° hacia la fila</td>
+                    <td><code>SWEEP_ALIGN</code></td>
+                </tr>
+                <tr>
+                    <td><code>SWEEP_ALIGN</code></td>
+                    <td>Ningún vecino libre en ninguna dirección</td>
+                    <td>Pinta casilla de naranja (129)</td>
+                    <td><code>CRITICAL_POINT</code></td>
+                </tr>
+                <tr>
+                    <td><code>CRITICAL_POINT</code></td>
+                    <td>Quedan Return Points o celdas libres en el mapa</td>
+                    <td>Calcula ruta BFS más corta a través de celdas transitadas</td>
+                    <td><code>BACKTRACK</code></td>
+                </tr>
+                <tr>
+                    <td><code>CRITICAL_POINT</code></td>
+                    <td>No queda ninguna celda libre alcanzable</td>
+                    <td>Detiene los motores completamente</td>
+                    <td><code>FINISHED</code></td>
+                </tr>
+                <tr>
+                    <td><code>BACKTRACK</code></td>
+                    <td>Llega a la celda del Return Point objetivo</td>
+                    <td>Orienta el barrido hacia el lado con celdas libres</td>
+                    <td><code>SWEEP_ALIGN</code></td>
+                </tr>
+            </tbody>
+        </table>
 
-    <h3>3.1. Transformada de Coordenadas Invertida y Escala Real</h3>
-    <p>
-        El mapa suministrado sitúa su origen en la esquina superior izquierda de la imagen, mientras que el simulador ubica su origen en el centro de la casa con el eje horizontal invertido respecto al visualizador.
-    </p>
-    <p>
-        La escala entre ambos mundos se dedujo a partir de las dimensiones del chasis: el diámetro real del robot se mapea a píxeles en la imagen, estableciendo una relación directa entre metros y píxeles. Teniendo en cuenta los offsets de centrado de la simulación, las transformaciones bidireccionales permiten convertir continuamente entre la odometría de Gazebo y las coordenadas discretas de la rejilla. El signo negativo en el eje horizontal garantiza que cuando el robot avanza hacia el oeste en el simulador, la representación en pantalla se mueva fielmente hacia el oeste sin desfasarse de los muros.
-    </p>
+        <h2>3. Decisiones de Diseño e Implementación</h2>
 
-    <h3>3.2. Discretización en Rejilla y Descarte Estricto por Erosión</h3>
-    <p>
-        Para estructurar la navegación celular se dividió el mapa en una cuadrícula regular. El tamaño de cada celda se escogió inferior al diámetro del robot; de esta forma, cada pasada limpia la celda por completo y solapa con las contiguas, evitando dejar franjas de suciedad entre pasadas.
-    </p>
-    <p>
-        Inicialmente se probó un filtrado por porcentaje de píxeles libres, pero provocaba asimetrías indeseadas en esquinas rectangulares donde un vértice se descartaba y el opuesto se aceptaba. Para asegurar simetría total y prevenir colisiones, se implementó un <strong>descarte estricto con margen morfológico</strong>:
-    </p>
-    <ol>
-        <li>Se expanden los obstáculos del mapa mediante erosión morfológica del espacio libre utilizando un kernel estructurante.</li>
-        <li>Una celda solo se clasifica como libre (<code>CELL_FREE</code>) si todos sus píxeles son transitables tras la erosión. La presencia de un solo píxel de obstáculo descarta la celda completa.</li>
-    </ol>
-    <p>
-        Geométricamente, al sumar la barrera de erosión y la distancia desde el centro de la celda hasta su frontera exterior, el centro de cualquier celda transitable se sitúa siempre a una distancia del muro superior al radio físico del robot. Esto asegura una holgura libre de seguridad permanente contra cualquier obstáculo.
-    </p>
+        <h3>3.1. Transformada de Coordenadas Invertida y Escala Real</h3>
+        <p>
+            El mapa suministrado sitúa su origen en la esquina superior izquierda de la imagen, mientras que el simulador ubica su origen en el centro de la casa con el eje horizontal invertido respecto al visualizador.
+        </p>
+        <p>
+            La escala entre ambos mundos se dedujo a partir de las dimensiones del chasis: el diámetro real del robot se mapea a píxeles en la imagen, estableciendo una relación directa entre metros y píxeles. Teniendo en cuenta los offsets de centrado de la simulación, las transformaciones bidireccionales permiten convertir continuamente entre la odometría de Gazebo y las coordenadas discretas de la rejilla. El signo negativo en el eje horizontal garantiza que cuando el robot avanza hacia el oeste en el simulador, la representación en pantalla se mueva fielmente hacia el oeste sin desfasarse de los muros.
+        </p>
 
-    <figure class="diagram">
-        <svg width="640" height="250" viewBox="0 0 640 250" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <marker id="dim-arrow-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-                    <path d="M 8 1.5 L 0 5 L 8 8.5 z" fill="#16a34a"/>
-                </marker>
-                <marker id="dim-arrow-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-                    <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16a34a"/>
-                </marker>
-            </defs>
+        <h3>3.2. Discretización en Rejilla y Descarte Estricto por Erosión</h3>
+        <p>
+            Para estructurar la navegación celular se dividió el mapa en una cuadrícula regular. El tamaño de cada celda se escogió inferior al diámetro del robot; de esta forma, cada pasada limpia la celda por completo y solapa con las contiguas, evitando dejar franjas de suciedad entre pasadas.
+        </p>
+        <p>
+            Inicialmente se probó un filtrado por porcentaje de píxeles libres, pero provocaba asimetrías indeseadas en esquinas rectangulares donde un vértice se descartaba y el opuesto se aceptaba. Para asegurar simetría total y prevenir colisiones, se implementó un <strong>descarte estricto con margen morfológico</strong>:
+        </p>
+        <ol>
+            <li>Se expanden los obstáculos del mapa mediante erosión morfológica del espacio libre utilizando un kernel estructurante.</li>
+            <li>Una celda solo se clasifica como libre (<code>CELL_FREE</code>) si todos sus píxeles son transitables tras la erosión. La presencia de un solo píxel de obstáculo descarta la celda completa.</li>
+        </ol>
+        <p>
+            Geométricamente, al sumar la barrera de erosión y la distancia desde el centro de la celda hasta su frontera exterior, el centro de cualquier celda transitable se sitúa siempre a una distancia del muro superior al radio físico del robot. Esto asegura una holgura libre de seguridad permanente contra cualquier obstáculo.
+        </p>
 
-            <!-- Muro físico -->
-            <rect x="40" y="30" width="80" height="190" fill="#111111" />
-            <text x="80" y="130" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Muro físico</text>
+        <figure class="diagram">
+            <svg width="640" height="250" viewBox="0 0 640 250" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="dim-arrow-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                        <path d="M 8 1.5 L 0 5 L 8 8.5 z" fill="#16a34a"/>
+                    </marker>
+                    <marker id="dim-arrow-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16a34a"/>
+                    </marker>
+                </defs>
 
-            <!-- Margen de erosión -->
-            <rect x="120" y="30" width="45" height="190" fill="#fee2e2" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3 3" />
-            <text x="142" y="22" font-size="9" font-weight="600" fill="#dc2626" text-anchor="middle">Erosión</text>
+                <!-- Muro físico -->
+                <rect x="40" y="30" width="80" height="190" fill="#111111" />
+                <text x="80" y="130" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Muro físico</text>
 
-            <!-- Celda libre -->
-            <rect x="165" y="45" width="160" height="160" fill="#f4f4f4" stroke="#666666" stroke-width="1.6" />
-            <text x="245" y="38" font-size="10" font-weight="600" text-anchor="middle">Celda libre transitable</text>
+                <!-- Margen de erosión -->
+                <rect x="120" y="30" width="45" height="190" fill="#fee2e2" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3 3" />
+                <text x="142" y="22" font-size="9" font-weight="600" fill="#dc2626" text-anchor="middle">Erosión</text>
 
-            <!-- Centro de la celda -->
-            <circle cx="245" cy="125" r="3.5" fill="#111111" />
-            <text x="245" y="142" font-size="9" text-anchor="middle">Centro</text>
+                <!-- Celda libre -->
+                <rect x="165" y="45" width="160" height="160" fill="#f4f4f4" stroke="#666666" stroke-width="1.6" />
+                <text x="245" y="38" font-size="10" font-weight="600" text-anchor="middle">Celda libre transitable</text>
 
-            <!-- Perímetro del robot -->
-            <circle cx="245" cy="125" r="105" fill="none" stroke="#2563eb" stroke-width="1.8" />
-            <text x="245" y="242" font-size="10" font-weight="600" fill="#2563eb" text-anchor="middle">Perímetro físico del robot</text>
+                <!-- Centro de la celda -->
+                <circle cx="245" cy="125" r="3.5" fill="#111111" />
+                <text x="245" y="142" font-size="9" text-anchor="middle">Centro</text>
 
-            <!-- Cota de holgura libre garantizada -->
-            <line x1="120" y1="125" x2="140" y2="125" stroke="#16a34a" stroke-width="2" marker-start="url(#dim-arrow-start)" marker-end="url(#dim-arrow-end)" />
-            <line x1="120" y1="110" x2="120" y2="140" stroke="#16a34a" stroke-width="1.2" />
-            <line x1="140" y1="110" x2="140" y2="140" stroke="#16a34a" stroke-width="1.2" />
-            <text x="130" y="100" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle">Holgura</text>
-        </svg>
-        <figcaption>Figura 2. Garantía geométrica de holgura libre entre chasis y pared.</figcaption>
-    </figure>
+                <!-- Perímetro del robot -->
+                <circle cx="245" cy="125" r="105" fill="none" stroke="#2563eb" stroke-width="1.8" />
+                <text x="245" y="242" font-size="10" font-weight="600" fill="#2563eb" text-anchor="middle">Perímetro físico del robot</text>
 
-    <h3>3.3. Giros Exactos a 90° con Reposo Físico Amortiguado</h3>
-    <p>
-        Al realizar cambios de fila, el robot experimentaba sobreoscilación angular debido a la inercia del simulador, deteniéndose ligeramente por encima de los 90°. Ese pequeño desvío hacía que iniciara la siguiente pasada torcido y circulara sobre las fronteras de las celdas.
-    </p>
-    <p>
-        La causa era que el lazo cortaba la velocidad angular en cuanto el error descendía del umbral de tolerancia, pero la inercia mecánica seguía rotando el chasis durante unas décimas de segundo adicionales mientras el código ya ordenaba avance lineal.
-    </p>
-    <p>
-        La solución consistió en:
-    </p>
-    <ul>
-        <li>Definir <strong>ángulos cardinales teóricos puros</strong> (0°, 90°, 180°, -90°) a partir de la cuadrícula, eliminando cualquier componente diagonal residual.</li>
-        <li>Aplicar control proporcional suave con velocidad angular moderada para evitar entradas bruscas.</li>
-        <li>Añadir una <strong>comprobación de reposo estático</strong>: el robot comanda velocidad cero y únicamente pasa al siguiente estado cuando el error se mantiene dentro de la tolerancia estricta durante varios ciclos consecutivos con el chasis completamente inmóvil.</li>
-    </ul>
+                <!-- Cota de holgura libre garantizada -->
+                <line x1="120" y1="125" x2="140" y2="125" stroke="#16a34a" stroke-width="2" marker-start="url(#dim-arrow-start)" marker-end="url(#dim-arrow-end)" />
+                <line x1="120" y1="110" x2="120" y2="140" stroke="#16a34a" stroke-width="1.2" />
+                <line x1="140" y1="110" x2="140" y2="140" stroke="#16a34a" stroke-width="1.2" />
+                <text x="130" y="100" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle">Holgura</text>
+            </svg>
+            <figcaption>Figura 2. Garantía geométrica de holgura libre entre chasis y pared.</figcaption>
+        </figure>
 
-    <h3>3.4. Rampa de Desaceleración Anticipada y Corrección Lateral (Cross-Track)</h3>
-    <p>
-        Para asegurar una dinámica suave y evitar frenazos en seco o deslizamientos indeseados:
-    </p>
-    <ol>
-        <li><strong>Desaceleración anticipada:</strong> En lugar de esperar a estar dentro de la celda de destino para frenar, el robot inicia una rampa de desaceleración progresiva con antelación al aproximarse al final de una pasada. Al alcanzar el centro, su velocidad es mínima y se detiene sin inercia.</li>
-        <li><strong>Velocidad moderada en pasos verticales:</strong> En el salto vertical de una sola celda para cambiar de fila, la velocidad se acota a un valor bajo de maniobra y comienza a decelerar casi desde el inicio, evitando pasarse de largo hacia abajo.</li>
-        <li><strong>Control lateral Cross-Track:</strong> Mientras avanza horizontalmente por una fila, mide continuamente su desviación respecto a la recta ideal del carril e introduce una leve corrección angular que lo mantiene centrado en el eje de la celda.</li>
-    </ol>
+        <h3>3.3. Giros Exactos a 90° con Reposo Físico Amortiguado</h3>
+        <p>
+            Al realizar cambios de fila, el robot experimentaba sobreoscilación angular debido a la inercia del simulador, deteniéndose ligeramente por encima de los 90°. Ese pequeño desvío hacía que iniciara la siguiente pasada torcido y circulara sobre las fronteras de las celdas.
+        </p>
+        <p>
+            La causa era que el lazo cortaba la velocidad angular en cuanto el error descendía del umbral de tolerancia, pero la inercia mecánica seguía rotando el chasis durante unas décimas de segundo adicionales mientras el código ya ordenaba avance lineal.
+        </p>
+        <p>
+            La solución consistió en:
+        </p>
+        <ul>
+            <li>Definir <strong>ángulos cardinales teóricos puros</strong> (0°, 90°, 180°, -90°) a partir de la cuadrícula, eliminando cualquier componente diagonal residual.</li>
+            <li>Aplicar control proporcional suave con velocidad angular moderada para evitar entradas bruscas.</li>
+            <li>Añadir una <strong>comprobación de reposo estático</strong>: el robot comanda velocidad cero y únicamente pasa al siguiente estado cuando el error se mantiene dentro de la tolerancia estricta durante varios ciclos consecutivos con el chasis completamente inmóvil.</li>
+        </ul>
 
-    <h2>4. Ajustes Prácticos y Simulación</h2>
-    <ul>
-        <li><strong>Centrado previo obligatorio:</strong> El robot aparece en el simulador en una posición ligeramente desplazada respecto al centro de su celda de partida. Realizar una maniobra previa de centrado evita arrastrar ese desfase a lo largo de todo el mapa.</li>
-        <li><strong>Lookahead sin efecto acordeón:</strong> Si se evalúa cada celda de forma aislada, el robot tiende a frenar y acelerar en cada transición. Con una comprobación de continuidad hacia adelante en la cuadrícula, si la siguiente celda de la fila sigue estando libre, el robot encadena los pasos a velocidad de crucero continuo sin interrupciones.</li>
-        <li><strong>Gestión de Puntos Críticos y Return Points:</strong> Las casillas donde el robot agota sus opciones de avance se pintan de <strong>naranja (129)</strong> en la visualización. Al finalizar el camino de retorno mediante BFS, el robot orienta dinámicamente el barrido hacia el lado donde se encuentren las celdas libres pendientes.</li>
-        <li><strong>Decimación del envío a WebGUI:</strong> Enviar mapas completos en cada ciclo saturaba la conexión en el entorno web. Refrescar la interfaz cada varios ciclos permite mantener el lazo de control y la odometría a una frecuencia alta y estable.</li>
-    </ul>
+        <h3>3.4. Rampa de Desaceleración Anticipada y Corrección Lateral (Cross-Track)</h3>
+        <p>
+            Para asegurar una dinámica suave y evitar frenazos en seco o deslizamientos indeseados:
+        </p>
+        <ol>
+            <li><strong>Desaceleración anticipada:</strong> En lugar de esperar a estar dentro de la celda de destino para frenar, el robot inicia una rampa de desaceleración progresiva con antelación al aproximarse al final de una pasada. Al alcanzar el centro, su velocidad es mínima y se detiene sin inercia.</li>
+            <li><strong>Velocidad moderada en pasos verticales:</strong> En el salto vertical de una sola celda para cambiar de fila, la velocidad se acota a un valor bajo de maniobra y comienza a decelerar casi desde el inicio, evitando pasarse de largo hacia abajo.</li>
+            <li><strong>Control lateral Cross-Track:</strong> Mientras avanza horizontalmente por una fila, mide continuamente su desviación respecto a la recta ideal del carril e introduce una leve corrección angular que lo mantiene centrado en el eje de la celda.</li>
+        </ol>
 
-    <h2>5. Demostración en Vídeo</h2>
-    <p>
-        A continuación se muestra la ejecución completa del algoritmo de cobertura BSA Zig-Zag en simulación:
-    </p>
+        <h2>4. Ajustes Prácticos y Simulación</h2>
+        <ul>
+            <li><strong>Centrado previo obligatorio:</strong> El robot aparece en el simulador en una posición ligeramente desplazada respecto al centro de su celda de partida. Realizar una maniobra previa de centrado evita arrastrar ese desfase a lo largo de todo el mapa.</li>
+            <li><strong>Lookahead sin efecto acordeón:</strong> Si se evalúa cada celda de forma aislada, el robot tiende a frenar y acelerar en cada transición. Con una comprobación de continuidad hacia adelante en la cuadrícula, si la siguiente celda de la fila sigue estando libre, el robot encadena los pasos a velocidad de crucero continuo sin interrupciones.</li>
+            <li><strong>Gestión de Puntos Críticos y Return Points:</strong> Las casillas donde el robot agota sus opciones de avance se pintan de <strong>naranja (129)</strong> en la visualización. Al finalizar el camino de retorno mediante BFS, el robot orienta dinámicamente el barrido hacia el lado donde se encuentren las celdas libres pendientes.</li>
+            <li><strong>Decimación del envío a WebGUI:</strong> Enviar mapas completos en cada ciclo saturaba la conexión en el entorno web. Refrescar la interfaz cada varios ciclos permite mantener el lazo de control y la odometría a una frecuencia alta y estable.</li>
+        </ul>
 
-    <figure class="video-container">
-        <div class="video-wrapper">
-            <video controls preload="metadata" playsinline>
-                <source src="video.mp4" type="video/mp4">
-                Tu navegador no soporta la reproducción de vídeo HTML5.
-            </video>
+        <h2>5. Demostración en Vídeo</h2>
+        <p>
+            A continuación se muestra la ejecución completa del algoritmo de cobertura BSA Zig-Zag en simulación:
+        </p>
+
+        <figure class="video-container">
+            <div class="video-wrapper">
+                <video controls preload="metadata" playsinline>
+                    <source src="video.mp4" type="video/mp4">
+                    Tu navegador no soporta la reproducción de vídeo HTML5.
+                </video>
+            </div>
+            <figcaption>Demostración de la cobertura completa del entorno mediante BSA Zig-Zag.</figcaption>
+        </figure>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- PESTAÑA 2: DRONE RESCUE PEOPLE (CORREGIDO SIN PARÁMETROS LITERALES) -->
+    <!-- =================================================================== -->
+    <div id="rescue-people" class="tab-content">
+        <header>
+            <h1>Memoria Técnica</h1>
+            <div class="meta">Práctica: Drone Rescue People</div>
+        </header>
+
+        <h2>1. Objetivo</h2>
+        <p>
+            El objetivo de esta práctica es implementar la lógica de navegación autónoma, percepción artificial y gestión de misión para un vehículo aéreo no tripulado (cuadricóptero) encargado de localizar náufragos en mar abierto a partir de coordenadas geográficas orientativas. Empleando visión artificial con clasificadores en cascada sobre la cámara cenital, el dron debe identificar los rostros de las víctimas, inferir con precisión métrica sus coordenadas reales sobre la lámina de agua y gestionar de manera autónoma un modelo de batería virtual con protocolo de retorno a base (RTL) para recarga y posterior reanudación de la búsqueda sin dejar zonas desatendidas.
+        </p>
+
+        <h2>2. Máquina de Estados (FSM) y Ciclo de Misión</h2>
+        <p>
+            La arquitectura de control del vehículo se estructura como una máquina de estados finita determinista no bloqueante, sincronizada a la frecuencia de muestreo del simulador:
+        </p>
+        <ul>
+            <li><strong>INIT / TAKEOFF:</strong> Ejecuta la maniobra vertical de despegue desde la cubierta del buque hasta estabilizar la altitud operativa de búsqueda.</li>
+            <li><strong>TRANSIT_ENTRY:</strong> Desplaza al dron en línea recta hacia la entrada de la zona de búsqueda a velocidad de crucero rápida con desaceleración progresiva antes de alcanzar la cabecera del barrido.</li>
+            <li><strong>SEARCH:</strong> Realiza un barrido metódico en zigzag a velocidad constante y simétrica, orientando activamente el morro en la dirección de avance y progresando lateralmente hacia la derecha.</li>
+            <li><strong>RETURN_RECHARGE / LAND_RECHARGE:</strong> Se activa al caer la batería por debajo del umbral de reserva de seguridad. Pausa el avance, guarda el waypoint actual, regresa al buque y desciende de forma controlada hasta posarse sobre la cubierta.</li>
+            <li><strong>RECHARGING:</strong> Simula la recarga completa de la batería en reposo sobre la cubierta antes de autorizar el redespegue.</li>
+            <li><strong>RESUME_TAKEOFF / RESUME_TRANSIT:</strong> Despega nuevamente y navega de forma directa al waypoint exacto donde se interrumpió el barrido para continuar la cobertura.</li>
+            <li><strong>FINAL_RETURN / FINAL_LAND / FINISHED:</strong> Una vez localizados todos los supervivientes o finalizado el barrido, efectúa el aterrizaje definitivo en la nave nodriza e imprime el informe consolidado de rescate.</li>
+        </ul>
+
+        <figure class="diagram">
+            <svg width="780" height="420" viewBox="0 0 780 420" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="arrow-rp" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#111111"/>
+                    </marker>
+                    <marker id="arrow-orange-rp" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ea580c"/>
+                    </marker>
+                    <marker id="arrow-blue-rp" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2563eb"/>
+                    </marker>
+                </defs>
+
+                <!-- Fila Superior: Despegue e Inicio de Búsqueda -->
+                <circle cx="35" cy="57" r="5" fill="#111111" />
+                <line x1="40" y1="57" x2="70" y2="57" stroke="#111111" stroke-width="1.6" marker-end="url(#arrow-rp)" />
+                <text x="35" y="40" font-size="11" font-weight="700" text-anchor="middle">Inicio</text>
+
+                <rect x="75" y="35" width="115" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="132" y="62" font-size="12" font-weight="700" text-anchor="middle">TAKEOFF</text>
+
+                <!-- Flecha TAKEOFF -> TRANSIT_ENTRY (105px de separación, espacio holgado) -->
+                <line x1="190" y1="57" x2="290" y2="57" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-rp)" />
+                <rect x="195" y="47" width="90" height="18" fill="#ffffff" rx="2" />
+                <text x="240" y="60" font-size="9.5" font-weight="500" text-anchor="middle">Altitud alcanzada</text>
+
+                <rect x="295" y="35" width="125" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="357" y="62" font-size="12" font-weight="700" text-anchor="middle">TRANSIT_ENTRY</text>
+
+                <!-- Flecha TRANSIT_ENTRY -> SEARCH (105px de separación) -->
+                <line x1="420" y1="57" x2="520" y2="57" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-rp)" />
+                <rect x="425" y="47" width="90" height="18" fill="#ffffff" rx="2" />
+                <text x="470" y="60" font-size="9.5" font-weight="500" text-anchor="middle">Entrada alcanzada</text>
+
+                <!-- Nodo Central: SEARCH -->
+                <rect x="525" y="35" width="110" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="2.2" />
+                <text x="580" y="62" font-size="13" font-weight="700" text-anchor="middle">SEARCH</text>
+
+                <!-- Salida a Fin de Misión: Giro ortogonal hacia la columna derecha -->
+                <path d="M 635 57 L 705 57 L 705 138" fill="none" stroke="#111111" stroke-width="1.6" marker-end="url(#arrow-rp)" />
+                <rect x="640" y="47" width="85" height="18" fill="#ffffff" rx="2" />
+                <text x="682" y="60" font-size="9.5" font-weight="600" text-anchor="middle">Misión cumplida</text>
+
+                <!-- Columna Derecha: Fin de Misión -->
+                <rect x="645" y="145" width="120" height="44" rx="4" fill="#f4f4f4" stroke="#111111" stroke-width="1.8" />
+                <text x="705" y="172" font-size="12" font-weight="700" text-anchor="middle">FINAL_RETURN</text>
+
+                <line x1="705" y1="189" x2="705" y2="230" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-rp)" />
+                <rect x="660" y="200" width="90" height="18" fill="#ffffff" rx="2" />
+                <text x="705" y="213" font-size="9.5" font-weight="500" text-anchor="middle">Sobre el barco</text>
+
+                <rect x="645" y="235" width="120" height="44" rx="4" fill="#f4f4f4" stroke="#111111" stroke-width="1.8" />
+                <text x="705" y="262" font-size="12" font-weight="700" text-anchor="middle">FINAL_LAND</text>
+
+                <line x1="705" y1="279" x2="705" y2="320" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-rp)" />
+                <rect x="655" y="290" width="100" height="18" fill="#ffffff" rx="2" />
+                <text x="705" y="303" font-size="9.5" font-weight="500" text-anchor="middle">Aterrizaje final</text>
+
+                <rect x="645" y="325" width="120" height="44" rx="4" fill="#e5e5e5" stroke="#111111" stroke-width="1.8" />
+                <text x="705" y="352" font-size="12" font-weight="700" text-anchor="middle">FINISHED</text>
+
+                <!-- Descenso de Batería Baja hacia RETURN_RECHARGE -->
+                <line x1="565" y1="79" x2="565" y2="152" stroke="#ea580c" stroke-width="1.8" marker-end="url(#arrow-orange-rp)" />
+                <rect x="525" y="105" width="80" height="18" fill="#ffffff" rx="2" />
+                <text x="565" y="118" font-size="9.5" font-weight="700" fill="#ea580c" text-anchor="middle">Batería baja</text>
+
+                <rect x="490" y="160" width="145" height="44" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+                <text x="562" y="187" font-size="11" font-weight="700" fill="#ea580c" text-anchor="middle">RETURN_RECHARGE</text>
+
+                <!-- Descenso hacia LAND_RECHARGE -->
+                <line x1="562" y1="204" x2="562" y2="288" stroke="#ea580c" stroke-width="1.4" marker-end="url(#arrow-orange-rp)" />
+                <rect x="520" y="240" width="85" height="18" fill="#ffffff" rx="2" />
+                <text x="562" y="253" font-size="9.5" font-weight="500" fill="#ea580c" text-anchor="middle">Sobre el barco</text>
+
+                <rect x="490" y="295" width="145" height="44" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+                <text x="562" y="322" font-size="11" font-weight="700" fill="#ea580c" text-anchor="middle">LAND_RECHARGE</text>
+
+                <!-- Fila Inferior: Recarga y Despegue con 105px de separación sin colisiones -->
+                <line x1="490" y1="317" x2="395" y2="317" stroke="#ea580c" stroke-width="1.4" marker-end="url(#arrow-orange-rp)" />
+                <rect x="395" y="307" width="95" height="18" fill="#ffffff" rx="2" />
+                <text x="442" y="320" font-size="9.5" font-weight="500" fill="#ea580c" text-anchor="middle">Posado en cubierta</text>
+
+                <rect x="270" y="295" width="120" height="44" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+                <text x="330" y="322" font-size="11" font-weight="700" fill="#ea580c" text-anchor="middle">RECHARGING</text>
+
+                <line x1="270" y1="317" x2="175" y2="317" stroke="#2563eb" stroke-width="1.6" marker-end="url(#arrow-blue-rp)" />
+                <rect x="180" y="307" width="85" height="18" fill="#ffffff" rx="2" />
+                <text x="222" y="320" font-size="9.5" font-weight="700" fill="#2563eb" text-anchor="middle">Carga completa</text>
+
+                <rect x="40" y="295" width="130" height="44" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="2" />
+                <text x="105" y="322" font-size="11" font-weight="700" fill="#2563eb" text-anchor="middle">RESUME_TAKEOFF</text>
+
+                <!-- Ascenso hacia RESUME_TRANSIT -->
+                <line x1="105" y1="295" x2="105" y2="210" stroke="#2563eb" stroke-width="1.4" marker-end="url(#arrow-blue-rp)" />
+                <rect x="60" y="245" width="90" height="18" fill="#ffffff" rx="2" />
+                <text x="105" y="258" font-size="9.5" font-weight="500" fill="#2563eb" text-anchor="middle">Altitud alcanzada</text>
+
+                <rect x="40" y="160" width="130" height="44" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="2" />
+                <text x="105" y="187" font-size="11" font-weight="700" fill="#2563eb" text-anchor="middle">RESUME_TRANSIT</text>
+
+                <!-- Reenganche Limpio a SEARCH por el pasillo central libre de obstáculos -->
+                <path d="M 170 182 L 230 182 L 230 115 L 535 115 L 535 85" fill="none" stroke="#2563eb" stroke-width="1.8" marker-end="url(#arrow-blue-rp)" />
+                <rect x="245" y="105" width="125" height="18" fill="#ffffff" rx="2" />
+                <text x="307" y="118" font-size="9.5" font-weight="700" fill="#2563eb" text-anchor="middle">Punto de reanudación</text>
+            </svg>
+            <figcaption>Figura 1. Diagrama de la máquina de estados reactiva con protocolo RTL de recarga.</figcaption>
+        </figure>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Estado actual</th>
+                    <th>Condición evaluada</th>
+                    <th>Acción física / sensórica</th>
+                    <th>Siguiente estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>TAKEOFF</code></td>
+                    <td>Altitud operativa de vuelo estabilizada</td>
+                    <td>Frena ascenso vertical y orienta morro hacia cabecera</td>
+                    <td><code>TRANSIT_ENTRY</code></td>
+                </tr>
+                <tr>
+                    <td><code>TRANSIT_ENTRY</code></td>
+                    <td>Punto de entrada de búsqueda alcanzado</td>
+                    <td>Aplica frenada progresiva y activa la visión cenital</td>
+                    <td><code>SEARCH</code></td>
+                </tr>
+                <tr>
+                    <td><code>SEARCH</code></td>
+                    <td>Umbral de batería baja alcanzado</td>
+                    <td>Guarda índice del waypoint actual y pone rumbo a base</td>
+                    <td><code>RETURN_RECHARGE</code></td>
+                </tr>
+                <tr>
+                    <td><code>SEARCH</code></td>
+                    <td>Todos los náufragos confirmados o barrido completado</td>
+                    <td>Inicia retorno rápido definitivo al buque nodriza</td>
+                    <td><code>FINAL_RETURN</code></td>
+                </tr>
+                <tr>
+                    <td><code>RETURN_RECHARGE</code></td>
+                    <td>Llegada sobre el buque nodriza</td>
+                    <td>Comanda toma de tierra y activa temporizador de contacto</td>
+                    <td><code>LAND_RECHARGE</code></td>
+                </tr>
+                <tr>
+                    <td><code>LAND_RECHARGE</code></td>
+                    <td>Aterrizaje completado y posado en cubierta</td>
+                    <td>Congela consumo de vuelo e inicia flujo de recarga</td>
+                    <td><code>RECHARGING</code></td>
+                </tr>
+                <tr>
+                    <td><code>RECHARGING</code></td>
+                    <td>Batería completamente recargada</td>
+                    <td>Ordena despegue a altitud operativa para continuar</td>
+                    <td><code>RESUME_TAKEOFF</code></td>
+                </tr>
+                <tr>
+                    <td><code>RESUME_TRANSIT</code></td>
+                    <td>Llegada al punto donde se pausó la búsqueda</td>
+                    <td>Reanuda avance simétrico en zigzag sin redundancias</td>
+                    <td><code>SEARCH</code></td>
+                </tr>
+                <tr>
+                    <td><code>FINAL_RETURN</code></td>
+                    <td>Llegada sobre el buque nodriza</td>
+                    <td>Comanda descenso final sobre la cubierta</td>
+                    <td><code>FINAL_LAND</code></td>
+                </tr>
+                <tr>
+                    <td><code>FINAL_LAND</code></td>
+                    <td>Aterrizaje final completado en cubierta</td>
+                    <td>Detiene motores e imprime informe de rescate</td>
+                    <td><code>FINISHED</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>3. Decisiones de Diseño e Implementación</h2>
+
+        <h3>3.1. Transformación de Coordenadas Geodésicas al Marco Local ENU</h3>
+        <p>
+            El sistema de simulación no admite consignas de navegación directa en formato geográfico angular. El entorno sitúa el punto de despegue inicial (el barco) en el origen local. Las coordenadas provistas en el enunciado se transformaron a desplazamientos lineales sobre el plano proyectivo local asumiendo el elipsoide terrestre de referencia:
+        </p>
+        <div class="equation">
+            &Delta;Norte = (Lat_obj - Lat_barco) · R_lat
         </div>
-        <figcaption>Demostración de la cobertura completa del entorno mediante BSA Zig-Zag.</figcaption>
-    </figure>
+        <div class="equation">
+            &Delta;Este = (Lon_obj - Lon_barco) · R_lon · cos(Lat_media)
+        </div>
+        <p>
+            En el estándar espacial de robótica aérea <strong>ENU (East-North-Up)</strong> utilizado por ROS y Gazebo, el eje X positivo representa el componente Este y el eje Y positivo el componente Norte. Por tanto, el centro del área marítima de operaciones se ubica en el cuadrante con X positiva e Y negativa. Asignar signos erróneos a estos ejes provocaba que el dron volara en dirección opuesta, alejándose hacia mar abierto tras la popa de la embarcación.
+        </p>
+
+        <h3>3.2. Proyección Óptica Inversa sobre la Lámina de Agua (Modelo Pinhole)</h3>
+        <p>
+            Al registrar avistamientos, guardar la posición instantánea del dron provocaba una severa distorsión: si un náufrago era visualizado en los bordes del encuadre en dos o tres pasadas contiguas (separadas por el paso de carril entre pasadas), la distancia entre las posiciones del dron llegaba a superar ampliamente el umbral de agrupamiento. El algoritmo creía erróneamente estar descubriendo personas distintas y generaba duplicados falsos del mismo superviviente.
+        </p>
+        <p>
+            Para erradicar este problema se implementó el <strong>modelo inverso de cámara estenopeica (Pinhole Camera Model)</strong>. Conocida la cota de altitud de vuelo y la distancia focal derivada del campo de visión angular de la lente, se calcula la escala métrica de cada píxel en el agua y se proyecta la posición real del rostro con independencia de la ubicación del dron:
+        </p>
+        <div class="equation">
+            f = (w_img / 2) / tan(&theta;_HFOV / 2), &emsp; escala = Z / f
+        </div>
+        <div class="equation">
+            &Delta;X_body = -(v_c - cy) · escala, &emsp; &Delta;Y_body = -(u_c - cx) · escala
+        </div>
+        <div class="equation">
+            [X_agua, Y_agua]^T = [X_dron, Y_dron]^T + R(&psi;) · [&Delta;X_body, &Delta;Y_body]^T
+        </div>
+
+        <figure class="diagram">
+            <svg width="680" height="290" viewBox="0 0 680 290" xmlns="http://www.w3.org/2000/svg">
+                <!-- Eje Central / Altura -->
+                <line x1="340" y1="50" x2="340" y2="230" stroke="#666666" stroke-width="1.4" stroke-dasharray="4 3" />
+                <text x="350" y="140" font-size="10" font-weight="600" fill="#666666">Cota de altitud operativa Z</text>
+
+                <!-- Dron Quadrotor -->
+                <rect x="290" y="38" width="100" height="14" rx="2" fill="#111111" />
+                <circle cx="280" cy="45" r="7" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <circle cx="400" cy="45" r="7" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <circle cx="340" cy="50" r="4" fill="#dc2626" />
+                <text x="340" y="30" font-size="11" font-weight="700" text-anchor="middle">Cuadricóptero (X_dron, Y_dron)</text>
+
+                <!-- Haz Visual de la Cámara -->
+                <polygon points="340,50 170,230 510,230" fill="#f0f9ff" stroke="#0284c7" stroke-width="1.4" stroke-dasharray="3 3" opacity="0.8" />
+                <path d="M 315 80 A 40 40 0 0 0 365 80" fill="none" stroke="#0284c7" stroke-width="1.2" />
+                <text x="340" y="98" font-size="10" font-weight="600" fill="#0284c7" text-anchor="middle">&theta;_HFOV</text>
+
+                <!-- Superficie Marina -->
+                <line x1="60" y1="230" x2="620" y2="230" stroke="#0369a1" stroke-width="2.5" />
+                <text x="80" y="248" font-size="10" font-weight="700" fill="#0369a1">Lámina de agua (Superficie del mar)</text>
+
+                <!-- Punto Proyectado en Centro -->
+                <circle cx="340" cy="230" r="3.5" fill="#666666" />
+                <text x="340" y="246" font-size="9" text-anchor="middle">Proyección nadir</text>
+
+                <!-- Náufrago Real Desplazado -->
+                <line x1="340" y1="50" x2="455" y2="230" stroke="#dc2626" stroke-width="1.8" />
+                <circle cx="455" cy="230" r="6" fill="#ea580c" stroke="#111111" stroke-width="1.5" />
+                <text x="470" y="248" font-size="10" font-weight="700" fill="#ea580c">Náufrago real (X_agua, Y_agua)</text>
+
+                <!-- Cota de Desplazamiento Real Calculado -->
+                <line x1="340" y1="262" x2="455" y2="262" stroke="#16a34a" stroke-width="1.6" marker-start="url(#dim-arrow-start)" marker-end="url(#dim-arrow-end)" />
+                <text x="397" y="278" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle">&Delta;Y_cuerpo proyectado</text>
+            </svg>
+            <figcaption>Figura 2. Modelo estenopeico inverso para el cálculo trigonométrico de las coordenadas reales en agua.</figcaption>
+        </figure>
+
+        <h3>3.3. Detección Facial Invariante a la Orientación y Clustering Fino</h3>
+        <p>
+            El clasificador en cascada estándar presenta una estricta intolerancia frente a rostros inclinados fuera de un rango angular estrecho respecto a la vertical. Dado que los náufragos flotan en el mar con orientaciones corporales aleatorias, una comprobación a cuatro ángulos dejaba ciego al sistema frente a personas alineadas en ángulos diagonales intermedios.
+        </p>
+        <p>
+            Se implementó una evaluación en <strong>ocho orientaciones cardinales y diagonales</strong>. Para optimizar el tiempo de procesado, se ejecuta primero la orientación nominal y solo se procede con las rotaciones afines si no hay detección inmediata, interrumpiendo el cómputo en cuanto se localiza un rostro. Para agrupar avistamientos de pasadas contiguas y distinguir a náufragos que flotan en parejas, se fijó un umbral euclídeo sobre las coordenadas reales calculadas en el agua inferior a la separación mínima observada entre víctimas.
+        </p>
+
+        <h3>3.4. Dinámica de Vuelo Simétrica (Turn-First) y Perfil Proporcional</h3>
+        <p>
+            Al emplear navegación ingenua por posición pura, el cuadricóptero experimentaba una velocidad asimétrica severa en el eje longitudinal: en un sentido volaba suavemente, pero en el opuesto se abalanzaba bruscamente hacia atrás mientras aún giraba.
+        </p>
+        <p>
+            El problema se resolvió desacoplando la orientación del avance mediante la política <strong>Turn-First</strong>: al alcanzar el extremo de un carril, el dron frena su avance y ejecuta la rotación casi en el sitio. Una vez que el error angular baja del umbral de alineamiento, comanda velocidad constante simétrica en el eje del cuerpo, logrando pasadas idénticas en ambos sentidos. Asimismo, en los tránsitos lejanos entre el buque y el área de búsqueda, se emplea un control de velocidad proporcional saturado que viaja a velocidad de crucero en mar abierto y frena de manera progresiva y suave al aproximarse.
+        </p>
+
+        <h2>4. Ajustes Prácticos y Simulación</h2>
+        <ul>
+            <li><strong>Cota óptima de altitud:</strong> Volar a cotas elevadas reducía el tamaño aparente de las caras por debajo del límite de resolución del clasificador. Reduciendo la altura operativa, el rostro alcanza una densidad suficiente de píxeles sin comprometer la seguridad contra el oleaje.</li>
+            <li><strong>Aterrizaje en cubierta desvinculado de odometría:</strong> La cubierta del buque de salvamento se encuentra sobreelevada respecto al mar y el simulador no siempre conmuta el estado de aterrizado. Se introdujo una comprobación de reposo con temporizador de seguridad que garantiza la transición inmediata al estado de recarga.</li>
+            <li><strong>Desactivación del filtro global de histograma:</strong> La ecualización global convertía los reflejos y crestas del agua en falsos positivos de alto contraste. Prescindir de ella y afinar la pirámide de escala y el umbral de vecinos del clasificador eliminó por completo los falsos náufragos fantasma.</li>
+            <li><strong>Exclusión de la cámara frontal para navegación:</strong> La cámara delantera se mantiene activa en la interfaz para supervisión visual, pero se desvincula del algoritmo de marcado para evitar introducir lecturas oblicuas imprecisas.</li>
+        </ul>
+
+        <h2>5. Demostración en Vídeo</h2>
+        <p>
+            A continuación se muestra la misión completa de búsqueda, detección, recarga autónoma y retorno con éxito en el entorno de simulación:
+        </p>
+
+        <figure class="video-container">
+            <div class="video-wrapper">
+                <video controls preload="metadata" playsinline>
+                    <source src="videoRescue.mp4" type="video/mp4">
+                    Tu navegador no soporta la reproducción de vídeo HTML5.
+                </video>
+            </div>
+            <figcaption>Demostración de la búsqueda en zigzag, reconocimiento facial y ciclo de recarga de batería.</figcaption>
+        </figure>
+    </div>
 
 </div>
+
+<script>
+    function openPractice(event, practiceId) {
+        const videos = document.querySelectorAll('video');
+        videos.forEach(video => video.pause());
+
+        const contents = document.querySelectorAll('.tab-content');
+        contents.forEach(content => content.classList.remove('active'));
+
+        const buttons = document.querySelectorAll('.tab-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+
+        document.getElementById(practiceId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+</script>
 
 </body>
 </html>
