@@ -196,6 +196,9 @@
         <button class="tab-btn" onclick="openPractice(event, 'rescue-people')">
             Práctica 2: Drone Rescue People
         </button>
+        <button class="tab-btn" onclick="openPractice(event, 'autoparking')">
+            Práctica 3: Autoparking
+        </button>
     </nav>
 
     <!-- =================================================================== -->
@@ -808,6 +811,464 @@
                 </video>
             </div>
             <figcaption>Demostración de la búsqueda en zigzag, reconocimiento facial y ciclo de recarga de batería.</figcaption>
+        </figure>
+    </div>
+
+
+    <!-- =================================================================== -->
+    <!-- PESTAÑA 3: AUTOPARKING (APARCAMIENTO EN LÍNEA)                      -->
+    <!-- =================================================================== -->
+    <div id="autoparking" class="tab-content">
+        <header>
+            <h1>Memoria Técnica</h1>
+            <div class="meta">Práctica: Autoparking</div>
+        </header>
+
+        <h2>1. Objetivo</h2>
+        <p>
+            El objetivo de esta práctica es implementar la lógica de navegación de un vehículo autónomo con dirección Ackermann capaz de encontrar un hueco libre en una fila de coches aparcados en línea y estacionar correctamente en él. El vehículo dispone únicamente de odometría y de tres láseres planos (delantero, lateral derecho y trasero), por lo que debe construir su propia representación de la fila, decidir si el hueco detectado es viable, planificar la maniobra marcha atrás teniendo en cuenta su radio de giro real y terminar paralelo a la acera, dentro de la línea de coches y centrado entre el vehículo delantero y el trasero.
+        </p>
+
+        <h2>2. Máquina de Estados (FSM) y Secuencia de Maniobra</h2>
+        <p>
+            El comportamiento se implementa como una máquina de estados finita no bloqueante. Los estados de maniobra no mueven el coche directamente: cada uno lanza un <strong>arco</strong> (sentido de marcha, volante a tope a un lado y condición de parada) que se ejecuta mediante un subciclo común de pre-giro, avance y parada:
+        </p>
+        <ul>
+            <li><strong>WAIT_ODOM:</strong> Mantiene el vehículo detenido hasta recibir una odometría válida y estable durante varios ciclos consecutivos.</li>
+            <li><strong>CALIBRATE:</strong> Avanza un tramo corto en línea recta con las ruedas centradas y fija el sistema de referencia de la calle a partir del desplazamiento real del vehículo.</li>
+            <li><strong>SCAN_ROW:</strong> Parado, estima con el láser lateral la distancia a la cara de la fila de coches aparcados y calcula el carril de búsqueda.</li>
+            <li><strong>APPROACH / APPROACH_COUNTER:</strong> Ejecuta una ese hacia delante con el volante a tope para acercarse a la fila. Durante el primer arco mide el radio de giro real del vehículo.</li>
+            <li><strong>SEARCH:</strong> Avanza paralelo a la fila con control de carril suave mientras construye un mapa de ocupación unidimensional. Al detectar un hueco cerrado y suficientemente largo, planifica la maniobra.</li>
+            <li><strong>GOTO_START:</strong> Avanza hasta el punto de inicio calculado, alineado con el coche delantero.</li>
+            <li><strong>REVERSE_RIGHT / REVERSE_LEFT:</strong> Maniobra en S marcha atrás: volante a tope a la derecha hasta que la rueda trasera alcanza la línea de la fila y contravolante a tope a la izquierda hasta quedar paralelo.</li>
+            <li><strong>TUCK / TUCK_COUNTER:</strong> Eses cortas alternando hacia delante y hacia atrás que aprovechan todo el espacio libre para ganar profundidad dentro del hueco.</li>
+            <li><strong>FIX_HEADING / CENTER / PARKED:</strong> Corrige el rumbo residual, se centra entre los dos coches con las ruedas rectas y detiene el vehículo.</li>
+        </ul>
+
+        <figure class="diagram">
+            <svg width="780" height="540" viewBox="0 0 780 540" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="arrow-ap" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#111111"/>
+                    </marker>
+                    <marker id="arrow-orange-ap" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#ea580c"/>
+                    </marker>
+                    <marker id="arrow-blue-ap" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2563eb"/>
+                    </marker>
+                    <marker id="arrow-gray-ap" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#666666"/>
+                    </marker>
+                </defs>
+
+                <!-- Inicio -->
+                <circle cx="103" cy="14" r="5" fill="#111111" />
+                <text x="115" y="18" font-size="11" font-weight="700">Inicio</text>
+                <line x1="103" y1="19" x2="103" y2="32" stroke="#111111" stroke-width="1.6" marker-end="url(#arrow-ap)" />
+
+                <!-- Fila 1: Arranque y aproximación -->
+                <rect x="40" y="40" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="103" y="67" font-size="11" font-weight="700" text-anchor="middle">WAIT_ODOM</text>
+
+                <rect x="230" y="40" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="293" y="67" font-size="11" font-weight="700" text-anchor="middle">CALIBRATE</text>
+
+                <rect x="420" y="40" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="483" y="67" font-size="11" font-weight="700" text-anchor="middle">SCAN_ROW</text>
+
+                <rect x="610" y="40" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="673" y="67" font-size="11" font-weight="700" text-anchor="middle">APPROACH</text>
+
+                <line x1="166" y1="62" x2="222" y2="62" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="168" y="44" width="52" height="13" fill="#ffffff" />
+                <text x="194" y="54" font-size="8.5" font-weight="500" text-anchor="middle">Odom. OK</text>
+
+                <line x1="356" y1="62" x2="412" y2="62" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="358" y="44" width="52" height="13" fill="#ffffff" />
+                <text x="384" y="54" font-size="8.5" font-weight="500" text-anchor="middle">Calle fijada</text>
+
+                <line x1="546" y1="62" x2="602" y2="62" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="548" y="44" width="52" height="13" fill="#ffffff" />
+                <text x="574" y="54" font-size="8.5" font-weight="500" text-anchor="middle">Fila vista</text>
+
+                <!-- APPROACH -> APPROACH_COUNTER -->
+                <line x1="673" y1="84" x2="673" y2="142" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="628" y="106" width="90" height="15" fill="#ffffff" />
+                <text x="673" y="117" font-size="9" font-weight="500" text-anchor="middle">Mitad del lateral</text>
+
+                <!-- Fila 2: Búsqueda del hueco -->
+                <rect x="610" y="150" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="673" y="177" font-size="10.5" font-weight="700" text-anchor="middle">APPROACH_COUNTER</text>
+
+                <rect x="420" y="150" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="2.2" />
+                <text x="483" y="177" font-size="12" font-weight="700" text-anchor="middle">SEARCH</text>
+
+                <rect x="230" y="150" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="293" y="177" font-size="11" font-weight="700" text-anchor="middle">GOTO_START</text>
+
+                <line x1="610" y1="172" x2="554" y2="172" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="552" y="154" width="56" height="13" fill="#ffffff" />
+                <text x="580" y="164" font-size="8.5" font-weight="500" text-anchor="middle">Paralelo</text>
+
+                <line x1="420" y1="172" x2="364" y2="172" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="362" y="154" width="56" height="13" fill="#ffffff" />
+                <text x="390" y="164" font-size="8.5" font-weight="500" text-anchor="middle">Plan listo</text>
+
+                <!-- GOTO_START -> REVERSE_RIGHT -->
+                <path d="M 230 172 L 103 172 L 103 252" fill="none" stroke="#ea580c" stroke-width="1.6" marker-end="url(#arrow-orange-ap)" />
+                <rect x="112" y="178" width="110" height="15" fill="#ffffff" />
+                <text x="167" y="189" font-size="9" font-weight="600" fill="#ea580c" text-anchor="middle">Alineado con el delantero</text>
+
+                <!-- Fila 3: Maniobra en S y eses de ajuste -->
+                <rect x="40" y="260" width="126" height="44" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+                <text x="103" y="287" font-size="10.5" font-weight="700" fill="#ea580c" text-anchor="middle">REVERSE_RIGHT</text>
+
+                <rect x="230" y="260" width="126" height="44" rx="4" fill="#ffffff" stroke="#ea580c" stroke-width="2" />
+                <text x="293" y="287" font-size="10.5" font-weight="700" fill="#ea580c" text-anchor="middle">REVERSE_LEFT</text>
+
+                <rect x="420" y="260" width="126" height="44" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="2" />
+                <text x="483" y="287" font-size="11" font-weight="700" fill="#2563eb" text-anchor="middle">TUCK</text>
+
+                <rect x="610" y="260" width="126" height="44" rx="4" fill="#ffffff" stroke="#2563eb" stroke-width="2" />
+                <text x="673" y="287" font-size="10.5" font-weight="700" fill="#2563eb" text-anchor="middle">TUCK_COUNTER</text>
+
+                <line x1="166" y1="282" x2="222" y2="282" stroke="#ea580c" stroke-width="1.4" marker-end="url(#arrow-orange-ap)" />
+                <rect x="160" y="240" width="68" height="15" fill="#ffffff" />
+                <text x="194" y="251" font-size="9" font-weight="600" fill="#ea580c" text-anchor="middle">Rueda en línea</text>
+
+                <line x1="356" y1="282" x2="412" y2="282" stroke="#ea580c" stroke-width="1.4" marker-end="url(#arrow-orange-ap)" />
+                <rect x="358" y="240" width="52" height="15" fill="#ffffff" />
+                <text x="384" y="251" font-size="9" font-weight="500" fill="#ea580c" text-anchor="middle">Paralelo</text>
+
+                <line x1="546" y1="272" x2="602" y2="272" stroke="#2563eb" stroke-width="1.4" marker-end="url(#arrow-blue-ap)" />
+                <rect x="546" y="240" width="58" height="15" fill="#ffffff" />
+                <text x="575" y="251" font-size="9" font-weight="500" fill="#2563eb" text-anchor="middle">Media ese</text>
+
+                <line x1="610" y1="294" x2="554" y2="294" stroke="#2563eb" stroke-width="1.4" marker-end="url(#arrow-blue-ap)" />
+                <rect x="548" y="310" width="56" height="15" fill="#ffffff" />
+                <text x="576" y="321" font-size="9" font-weight="500" fill="#2563eb" text-anchor="middle">Paralelo</text>
+
+                <!-- TUCK -> FIX_HEADING -->
+                <line x1="483" y1="304" x2="483" y2="362" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="400" y="327" width="78" height="15" fill="#ffffff" />
+                <text x="439" y="338" font-size="9" font-weight="500" text-anchor="middle">Profundidad OK</text>
+
+                <!-- Fila 4: Ajuste final -->
+                <rect x="420" y="370" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="483" y="397" font-size="11" font-weight="700" text-anchor="middle">FIX_HEADING</text>
+
+                <rect x="230" y="370" width="126" height="44" rx="4" fill="#ffffff" stroke="#111111" stroke-width="1.8" />
+                <text x="293" y="397" font-size="11" font-weight="700" text-anchor="middle">CENTER</text>
+
+                <rect x="40" y="370" width="126" height="44" rx="4" fill="#e5e5e5" stroke="#111111" stroke-width="1.8" />
+                <text x="103" y="397" font-size="11" font-weight="700" text-anchor="middle">PARKED</text>
+
+                <path d="M 546 382 L 588 382 L 588 404 L 554 404" fill="none" stroke="#666666" stroke-width="1.4" stroke-dasharray="3 3" marker-end="url(#arrow-gray-ap)" />
+                <text x="596" y="397" font-size="9" font-weight="500" fill="#555555">Rumbo fuera de tolerancia</text>
+
+                <line x1="420" y1="392" x2="364" y2="392" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="362" y="374" width="56" height="13" fill="#ffffff" />
+                <text x="390" y="384" font-size="8.5" font-weight="500" text-anchor="middle">Rumbo OK</text>
+
+                <line x1="230" y1="392" x2="174" y2="392" stroke="#111111" stroke-width="1.4" marker-end="url(#arrow-ap)" />
+                <rect x="172" y="374" width="56" height="13" fill="#ffffff" />
+                <text x="200" y="384" font-size="8.5" font-weight="500" text-anchor="middle">Centrado</text>
+
+                <!-- Subciclo común de ejecución de arcos -->
+                <rect x="40" y="440" width="696" height="86" rx="6" fill="#fafafa" stroke="#999999" stroke-width="1.2" stroke-dasharray="5 4" />
+                <text x="54" y="459" font-size="10" font-weight="700" fill="#555555">Subciclo de ejecución de cada arco de maniobra</text>
+
+                <rect x="150" y="474" width="120" height="36" rx="4" fill="#ffffff" stroke="#666666" stroke-width="1.6" />
+                <text x="210" y="496" font-size="11" font-weight="700" text-anchor="middle">STEER</text>
+
+                <rect x="330" y="474" width="120" height="36" rx="4" fill="#ffffff" stroke="#666666" stroke-width="1.6" />
+                <text x="390" y="496" font-size="11" font-weight="700" text-anchor="middle">ARC</text>
+
+                <rect x="510" y="474" width="120" height="36" rx="4" fill="#ffffff" stroke="#666666" stroke-width="1.6" />
+                <text x="570" y="496" font-size="11" font-weight="700" text-anchor="middle">SETTLE</text>
+
+                <line x1="270" y1="492" x2="322" y2="492" stroke="#666666" stroke-width="1.4" marker-end="url(#arrow-gray-ap)" />
+                <line x1="450" y1="492" x2="502" y2="492" stroke="#666666" stroke-width="1.4" marker-end="url(#arrow-gray-ap)" />
+                <line x1="630" y1="492" x2="664" y2="492" stroke="#666666" stroke-width="1.4" marker-end="url(#arrow-gray-ap)" />
+                <text x="58" y="496" font-size="9" fill="#555555">Lanza arco</text>
+                <line x1="112" y1="492" x2="142" y2="492" stroke="#666666" stroke-width="1.4" marker-end="url(#arrow-gray-ap)" />
+                <text x="296" y="520" font-size="8.5" fill="#555555" text-anchor="middle">Volante en posición</text>
+                <text x="476" y="520" font-size="8.5" fill="#555555" text-anchor="middle">Condición u obstáculo</text>
+                <text x="670" y="496" font-size="9" fill="#555555">Siguiente</text>
+            </svg>
+            <figcaption>Figura 1. Diagrama de la máquina de estados de búsqueda y aparcamiento con el subciclo común de ejecución de arcos.</figcaption>
+        </figure>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Estado actual</th>
+                    <th>Condición evaluada</th>
+                    <th>Acción física / sensórica</th>
+                    <th>Siguiente estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>WAIT_ODOM</code></td>
+                    <td>Odometría con marca temporal válida y posición estable varios ciclos</td>
+                    <td>Guarda la pose inicial con el vehículo detenido</td>
+                    <td><code>CALIBRATE</code></td>
+                </tr>
+                <tr>
+                    <td><code>CALIBRATE</code></td>
+                    <td>Recorrido en línea recta completado</td>
+                    <td>Fija origen, dirección de la calle y referencia de rumbo</td>
+                    <td><code>SCAN_ROW</code></td>
+                </tr>
+                <tr>
+                    <td><code>SCAN_ROW</code></td>
+                    <td>Cara de la fila estimada con el láser lateral</td>
+                    <td>Calcula el carril de búsqueda y el desplazamiento de aproximación</td>
+                    <td><code>APPROACH</code></td>
+                </tr>
+                <tr>
+                    <td><code>APPROACH</code></td>
+                    <td>Eje trasero en la mitad del desplazamiento lateral</td>
+                    <td>Mide el radio de giro real durante el arco</td>
+                    <td><code>APPROACH_COUNTER</code></td>
+                </tr>
+                <tr>
+                    <td><code>APPROACH_COUNTER</code></td>
+                    <td>Rumbo de vuelta a paralelo con la calle</td>
+                    <td>Endereza las ruedas antes de iniciar la búsqueda</td>
+                    <td><code>SEARCH</code></td>
+                </tr>
+                <tr>
+                    <td><code>SEARCH</code></td>
+                    <td>Hueco cerrado de longitud suficiente y plan factible</td>
+                    <td>Calcula profundidad, ángulo de la S y punto de inicio</td>
+                    <td><code>GOTO_START</code></td>
+                </tr>
+                <tr>
+                    <td><code>SEARCH</code></td>
+                    <td>Distancia máxima de búsqueda recorrida sin hueco válido</td>
+                    <td>Detiene el vehículo</td>
+                    <td><code>ABORTED</code></td>
+                </tr>
+                <tr>
+                    <td><code>GOTO_START</code></td>
+                    <td>Punto de inicio alcanzado, alineado con el coche delantero</td>
+                    <td>Para con las ruedas rectas</td>
+                    <td><code>REVERSE_RIGHT</code></td>
+                </tr>
+                <tr>
+                    <td><code>GOTO_START</code></td>
+                    <td>Recorrido superior al previsto sin alcanzar el inicio</td>
+                    <td>Freno de seguridad para no abandonar el mapa</td>
+                    <td><code>ABORTED</code></td>
+                </tr>
+                <tr>
+                    <td><code>REVERSE_RIGHT</code></td>
+                    <td>Rueda trasera sobre la línea de la fila (mitad del desplazamiento)</td>
+                    <td>Para y gira el volante a tope al lado contrario</td>
+                    <td><code>REVERSE_LEFT</code></td>
+                </tr>
+                <tr>
+                    <td><code>REVERSE_LEFT</code></td>
+                    <td>Rumbo paralelo o coche trasero a la distancia de seguridad</td>
+                    <td>Para dentro del hueco</td>
+                    <td><code>TUCK</code></td>
+                </tr>
+                <tr>
+                    <td><code>TUCK</code></td>
+                    <td>Falta profundidad y queda espacio libre delante o detrás</td>
+                    <td>Primer arco de la ese en el sentido con más espacio</td>
+                    <td><code>TUCK_COUNTER</code></td>
+                </tr>
+                <tr>
+                    <td><code>TUCK_COUNTER</code></td>
+                    <td>Rumbo de vuelta a paralelo</td>
+                    <td>Contravolante en el mismo sentido de marcha</td>
+                    <td><code>TUCK</code></td>
+                </tr>
+                <tr>
+                    <td><code>TUCK</code></td>
+                    <td>Profundidad dentro de tolerancia o sin espacio útil</td>
+                    <td>Da por terminada la ganancia de profundidad</td>
+                    <td><code>FIX_HEADING</code></td>
+                </tr>
+                <tr>
+                    <td><code>FIX_HEADING</code></td>
+                    <td>Rumbo residual dentro de tolerancia</td>
+                    <td>Endereza las ruedas</td>
+                    <td><code>CENTER</code></td>
+                </tr>
+                <tr>
+                    <td><code>CENTER</code></td>
+                    <td>Distancias delantera y trasera igualadas</td>
+                    <td>Detiene el vehículo aparcado</td>
+                    <td><code>PARKED</code></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>3. Decisiones de Diseño e Implementación</h2>
+
+        <h3>3.1. Sistema de Referencia de la Calle Calibrado por Desplazamiento</h3>
+        <p>
+            Toda la lógica de búsqueda y maniobra trabaja en un sistema de referencia propio de la calle: una coordenada <code>s</code> de avance a lo largo de la fila, una coordenada <code>d</code> de profundidad hacia la acera y un rumbo relativo <code>h</code>. Inicialmente la dirección de la calle se tomaba directamente del ángulo de guiñada de la odometría, lo que provocó dos fallos graves en el simulador.
+        </p>
+        <p>
+            Por un lado, al arrancar el programa el HAL devuelve una pose vacía en el origen hasta recibir el primer mensaje, de modo que la dirección calculada apuntaba hacia ese origen ficticio. Por otro, cualquier desfase entre la guiñada de la odometría y la dirección real de avance gira los ejes de la calle: el coche cree desviarse lateralmente mientras avanza recto, corrige sin parar en zigzag y la coordenada de avance apenas crece, por lo que nunca alcanzaba el punto de inicio de la maniobra.
+        </p>
+        <p>
+            La solución consiste en esperar a una odometría válida y estable y medir la dirección de la calle con el <strong>desplazamiento real</strong> del vehículo durante un tramo recto inicial con las ruedas centradas. El rumbo se mide siempre de forma relativa a la guiñada de ese instante, por lo que cualquier desfase constante se cancela:
+        </p>
+        <div class="equation">
+            u = (p<sub>1</sub> - p<sub>0</sub>) / ‖p<sub>1</sub> - p<sub>0</sub>‖, &emsp; n = R(+90°) · u
+        </div>
+        <div class="equation">
+            s = (p - p<sub>0</sub>) · u, &emsp; d = -(p - p<sub>0</sub>) · n, &emsp; h = &psi; - &psi;<sub>0</sub>
+        </div>
+
+        <h3>3.2. Mapa de Ocupación Unidimensional de la Fila</h3>
+        <p>
+            En lugar de reaccionar a un único rayo perpendicular, cada lectura del láser lateral dentro de un abanico centrado en la perpendicular se transforma al sistema de la calle y se acumula en un mapa unidimensional de celdas a lo largo de <code>s</code>. La profundidad de la cara de la fila se estima con un percentil bajo de los impactos casi perpendiculares, robusto frente a los rayos que atraviesan los huecos.
+        </p>
+        <ul>
+            <li>Un impacto cuya profundidad cae dentro de la banda que ocupan los coches aparcados marca su celda como <strong>ocupada</strong>. Las farolas y la acera quedan más allá de la banda y no generan falsos coches.</li>
+            <li>Un rayo que cruza la línea de la fila sin chocar antes aporta evidencia de celda <strong>libre</strong> en el punto de cruce.</li>
+            <li>Un hueco solo se acepta si está <strong>cerrado</strong> por dos coches, supera la longitud mínima y la mayoría de sus celdas tienen evidencia de estar libres. Si la maniobra no cabe en él, el hueco se descarta y la búsqueda continúa.</li>
+        </ul>
+
+        <h3>3.3. Cinemática Ackermann del Simulador y Medida del Radio de Giro</h3>
+        <p>
+            El plugin de dirección Ackermann de Gazebo recibe velocidad lineal y angular y las convierte en un ángulo de dirección limitado por un tope mecánico muy pequeño. Además, la batalla configurada en el plugin no coincide con la del modelo, por lo que el radio real con el volante a tope es menor que el nominal pero sigue siendo muy grande frente a la longitud del hueco:
+        </p>
+        <div class="equation">
+            w = v · &kappa;, &emsp; R<sub>nominal</sub> = L<sub>plugin</sub> / sin(&delta;<sub>max</sub>), &emsp; R<sub>real</sub> &asymp; L<sub>modelo</sub> / tan(&delta;)
+        </div>
+        <p>
+            Para no depender de una estimación teórica, el radio se <strong>mide en marcha</strong> durante el primer arco de la aproximación, dividiendo la distancia recorrida por el eje trasero entre el giro acumulado. La curvatura pedida en cada arco supera siempre la máxima del plugin, de forma que este satura y la dirección queda exactamente a tope:
+        </p>
+        <div class="equation">
+            R&#770; = &Sigma; ‖&Delta;p<sub>eje</sub>‖ / |&Delta;h|
+        </div>
+        <p>
+            La dirección del plugin se mueve con un controlador proporcional lento, de modo que girar el volante en marcha deforma los arcos. Por ello, antes de cada arco el volante se <strong>pre-gira casi parado</strong>. Se detectó además que, con velocidad lineal nula y velocidad angular no nula, el plugin lleva siempre las ruedas a tope hacia la izquierda; el pre-giro se realiza por tanto con una velocidad mínima del signo adecuado.
+        </p>
+
+        <h3>3.4. Maniobra en S y Regla del Contravolante</h3>
+        <p>
+            La entrada en el hueco sigue la técnica clásica de aparcamiento en línea: marcha atrás con el volante a tope hacia la acera hasta que la rueda trasera alcanza la línea de los coches aparcados, y después contravolante a tope hasta quedar paralelo. Geométricamente son dos arcos de igual radio y ángulo, por lo que el cambio de volante se produce exactamente a mitad del desplazamiento lateral, y la profundidad final no depende del radio real:
+        </p>
+        <div class="equation">
+            D = 2R · (1 - cos &theta;), &emsp; L = 2R · sin &theta;, &emsp; cambio en &Delta;d<sub>eje</sub> = D / 2
+        </div>
+
+        <figure class="diagram">
+            <svg width="680" height="235" viewBox="0 65 680 235" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <marker id="dim-ap-start" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                        <path d="M 8 1.5 L 0 5 L 8 8.5 z" fill="#16a34a"/>
+                    </marker>
+                    <marker id="dim-ap-end" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#16a34a"/>
+                    </marker>
+                    <marker id="arrow-s-ap" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2563eb"/>
+                    </marker>
+                </defs>
+
+                <!-- Línea de la fila -->
+                <line x1="20" y1="190" x2="640" y2="190" stroke="#666666" stroke-width="1.2" stroke-dasharray="6 4" />
+                <text x="25" y="182" font-size="9.5" font-weight="600" fill="#555555">Línea de la fila</text>
+
+                <!-- Coches aparcados -->
+                <rect x="30" y="192" width="150" height="54" rx="6" fill="#d4d4d4" stroke="#111111" stroke-width="1.6" />
+                <text x="105" y="223" font-size="10" font-weight="700" text-anchor="middle">Coche trasero</text>
+
+                <rect x="480" y="192" width="150" height="54" rx="6" fill="#d4d4d4" stroke="#111111" stroke-width="1.6" />
+                <text x="555" y="223" font-size="10" font-weight="700" text-anchor="middle">Coche delantero</text>
+
+                <!-- Posición de inicio -->
+                <rect x="484" y="96" width="154" height="52" rx="6" fill="#ffffff" stroke="#111111" stroke-width="1.4" stroke-dasharray="4 3" />
+                <text x="588" y="126" font-size="10" font-weight="600" text-anchor="middle">Inicio (alineado)</text>
+
+                <!-- Posición final -->
+                <rect x="212" y="192" width="154" height="52" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2" />
+                <text x="289" y="232" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle">Posición final</text>
+
+                <!-- Trayectoria del eje trasero -->
+                <path d="M 517 122 C 430 122, 330 218, 245 218" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow-s-ap)" />
+                <circle cx="517" cy="122" r="3.5" fill="#2563eb" />
+                <circle cx="245" cy="218" r="3.5" fill="#2563eb" />
+
+                <!-- Punto de contravolante -->
+                <circle cx="381" cy="170" r="6" fill="#ea580c" stroke="#111111" stroke-width="1.2" />
+                <line x1="381" y1="170" x2="381" y2="190" stroke="#ea580c" stroke-width="1.2" stroke-dasharray="2 2" />
+                <text x="392" y="158" font-size="10" font-weight="700" fill="#ea580c">Contravolante</text>
+                <text x="392" y="171" font-size="9" fill="#ea580c">rueda trasera en la línea</text>
+
+                <!-- Etiquetas de los arcos -->
+                <text x="455" y="84" font-size="9.5" font-weight="600" fill="#2563eb" text-anchor="middle">Arco A: atrás, tope a la derecha</text>
+                <text x="250" y="168" font-size="9.5" font-weight="600" fill="#2563eb" text-anchor="middle">Arco B: atrás, tope a la izquierda</text>
+
+                <!-- Cota longitudinal L -->
+                <line x1="245" y1="268" x2="517" y2="268" stroke="#16a34a" stroke-width="1.6" marker-start="url(#dim-ap-start)" marker-end="url(#dim-ap-end)" />
+                <line x1="245" y1="258" x2="245" y2="278" stroke="#16a34a" stroke-width="1" />
+                <line x1="517" y1="258" x2="517" y2="278" stroke="#16a34a" stroke-width="1" />
+                <text x="381" y="290" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle">L = 2R · sin &theta;</text>
+
+                <!-- Cota lateral D -->
+                <line x1="655" y1="122" x2="655" y2="218" stroke="#16a34a" stroke-width="1.6" marker-start="url(#dim-ap-start)" marker-end="url(#dim-ap-end)" />
+                <line x1="645" y1="122" x2="665" y2="122" stroke="#16a34a" stroke-width="1" />
+                <line x1="645" y1="218" x2="665" y2="218" stroke="#16a34a" stroke-width="1" />
+                <text x="672" y="170" font-size="10" font-weight="700" fill="#16a34a" text-anchor="middle" transform="rotate(-90 672 170)">D = 2R(1 - cos &theta;)</text>
+            </svg>
+            <figcaption>Figura 2. Maniobra en S marcha atrás con dos arcos de radio mínimo y cambio de volante a mitad del desplazamiento lateral.</figcaption>
+        </figure>
+
+        <h3>3.5. Planificador Geométrico y Punto de Inicio Alineado</h3>
+        <p>
+            Con el radio de giro de este vehículo, el recorrido longitudinal que necesita la S es comparable a la del propio hueco, por lo que un punto de inicio fijo no es fiable. Al detectar el hueco, un planificador geométrico simula la <strong>huella rectangular completa del coche</strong> a lo largo de la S contra los dos coches que lo delimitan y elige la profundidad más grande y la posición final con mayor holgura.
+        </p>
+        <ul>
+            <li>Cada candidato se valida también con el radio medido aumentado y reducido en un pequeño porcentaje, de modo que el plan tolera errores de medida y de deslizamiento.</li>
+            <li>El punto de inicio se limita para que el vehículo no adelante al coche delantero, siguiendo la regla de colocarse alineado con él. Si desde esa posición no existe ninguna S segura, el límite se relaja progresivamente en lugar de descartar el hueco.</li>
+            <li>Desde la posición alineada la S solo alcanza aproximadamente la línea de la fila; el resto de la profundidad se completa con las eses de ajuste.</li>
+        </ul>
+
+        <h3>3.6. Eses de Ajuste Dentro del Hueco</h3>
+        <p>
+            Para terminar de introducir el vehículo se realizan eses cortas alternando el sentido de marcha: un arco a tope hacia la acera durante la mitad del recorrido y el contravolante hasta volver a quedar paralelo. Ambos arcos meten el coche hacia la acera tanto marchando hacia delante como hacia atrás. La profundidad ganada en cada ese crece con el cuadrado de la longitud recorrida:
+        </p>
+        <div class="equation">
+            &Delta;d &asymp; &ell;<sup>2</sup> / (4R)
+        </div>
+        <p>
+            En una primera versión cada ese restaba márgenes adicionales y se acortaba al acercarse a la profundidad objetivo, dejando mucho espacio libre con el coche delantero y multiplicando las maniobras. Ahora cada ese mide el espacio libre en su sentido de marcha con el láser correspondiente y lo <strong>recorre completo</strong> hasta la distancia de seguridad, sin enderezar el rumbo entre eses: cada una termina paralela por sí misma y el rumbo residual solo se corrige una vez al final.
+        </p>
+
+        <h2>4. Ajustes Prácticos y Simulación</h2>
+        <ul>
+            <li><strong>Aproximación con margen extra:</strong> En una ese a tope, la esquina delantera barre por fuera de la posición final del lateral del coche. La aproximación inicial se detiene más lejos de la fila de lo necesario y el control de carril cubre el resto de forma suave, evitando rozar el coche aparcado contiguo.</li>
+            <li><strong>Control de carril sin zigzag:</strong> La dirección del simulador responde con retardo, por lo que un control lateral agresivo oscila. Se emplean ganancias bajas, una zona muerta con las ruedas rectas y una espera con el vehículo parado para que las ruedas queden centradas antes de empezar a buscar.</li>
+            <li><strong>Tiempos medidos con reloj real:</strong> Las esperas de pre-giro y de parada se miden con el tiempo real transcurrido y no con el número de ciclos, de modo que siguen siendo correctas aunque el bucle de control no alcance la frecuencia nominal.</li>
+            <li><strong>Freno de seguridad en el avance:</strong> Si durante el avance hasta el punto de inicio el vehículo recorre más distancia de la prevista, se detiene en lugar de continuar indefinidamente fuera del mapa.</li>
+            <li><strong>Distancia de seguridad en todos los arcos:</strong> Cada arco vigila con el láser delantero o trasero, según el sentido de marcha, la distancia libre dentro del ancho del coche y se interrumpe si se acerca demasiado a un obstáculo.</li>
+        </ul>
+
+        <h2>5. Demostración en Vídeo</h2>
+        <p>
+            A continuación se muestra la ejecución completa de la búsqueda del hueco, la maniobra en S y el ajuste final dentro del hueco en simulación:
+        </p>
+
+        <figure class="video-container">
+            <div class="video-wrapper">
+                <video controls preload="metadata" playsinline>
+                    <source src="videoP3.mp4" type="video/mp4">
+                    Tu navegador no soporta la reproducción de vídeo HTML5.
+                </video>
+            </div>
+            <figcaption>Demostración de la búsqueda de hueco y el aparcamiento en línea autónomo.</figcaption>
         </figure>
     </div>
 
